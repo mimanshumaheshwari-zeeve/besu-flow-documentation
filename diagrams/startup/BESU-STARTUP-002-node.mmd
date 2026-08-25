@@ -3,14 +3,21 @@ config:
   layout: elk
   htmlLabels: false
   theme: neutral
-  look: handDrawn
+  look: classic
   elk:
-    mergeEdges: true
+    mergeEdges: false
     nodePlacementStrategy: LINEAR_SEGMENTS
-    nodePlacementAlignment: NONE
+    nodePlacementAlignment: BALANCED
+  flowchart:
+    nodeSpacing: 20
+    curve: base
+    defaultRenderer : elk
+    wrappingWidth: 350
+    inheritDir: false
+    rankSpacing: 10
 ---
 %% TD %%
-flowchart LR 
+flowchart TD 
 subgraph "app"
   subgraph "BesuCommand.java"
     run 

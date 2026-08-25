@@ -4,14 +4,18 @@ config:
   layout: elk
   htmlLabels: false
   theme: neutral
-  look: handDrawn
+  look: neo
   elk:
     mergeEdges: true
     nodePlacementStrategy: LINEAR_SEGMENTS
     nodePlacementAlignment: BALANCED
     keepEntryNodeOnTop: true
+  flowchart:
+    defaultRenderer : elk
+    wrappingWidth: 350
+    inheritDir: false
 ---
-flowchart 
+flowchart TD
 
   %% nat module %%
   subgraph "nat"
@@ -47,6 +51,20 @@ flowchart
       main(("`main()`"))
     end
 
+    subgraph "Runner.java"
+      startEthereumMainLoop(["`startEthereumMainLoop()`"])
+      startExternalServicePostMainLoop("`startExternalServicePostMainLoop()`")
+      startEthereumMainLoop e6@--> startExternalServicePostMainLoop
+    end
+
+    subgraph "MiningCoordinator.java"
+      mining_coordinator_start[["`start()`"]]
+    end
+
+    subgraph "Synchronizer.java"
+      synchronizer_start[["`start()`"]]
+    end
+
     subgraph BesuCommand.java 
       initialProcess(["`initialProcess()`"])
       parse(["`parse()`"])
@@ -60,18 +78,14 @@ flowchart
       initialProcess e11@--> startPlugins
     end
 
-    subgraph "Runner.java"
-      startEthereumMainLoop(["`startEthereumMainLoop()`"])
-      startExternalServicePostMainLoop("`startExternalServicePostMainLoop()`")
-
-      startEthereumMainLoop e6@--> startExternalServicePostMainLoop
-    end
     main e1@--> parse
     initialProcess e5@--> startEthereumMainLoop
     startEthereumMainLoop e9@--> nat_start
     startEthereumMainLoop e7@--> networkrunner_start
     startEthereumMainLoop e8@--> transactionPoolEvictionService_start
     startExternalServicePostMainLoop e10@--> ethstatsservece_start
+    startEthereumMainLoop e12@--> mining_coordinator_start
+    startEthereumMainLoop e13@--> synchronizer_start
   end
 
 %% animate edges %%
@@ -86,3 +100,5 @@ e8@{animate : true}
 e9@{animate : true}
 e10@{animate : true}
 e11@{animate : true}
+e12@{animate : true}
+e13@{animate : true}
