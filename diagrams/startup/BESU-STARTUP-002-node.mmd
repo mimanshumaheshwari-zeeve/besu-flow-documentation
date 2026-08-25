@@ -1,0 +1,79 @@
+---
+config:
+  layout: elk
+  htmlLabels: false
+  theme: neutral
+  look: handDrawn
+  elk:
+    mergeEdges: true
+    nodePlacementStrategy: LINEAR_SEGMENTS
+    nodePlacementAlignment: NONE
+---
+%% TD %%
+flowchart LR 
+subgraph "app"
+  subgraph "BesuCommand.java"
+    run 
+    executeCommandLine
+    initialProcess
+
+    executeCommandLine e1@--1--> run
+
+    run --2--> configureLogging
+    run --3--> setMergeConfigOptions
+    run --4--> instantiateSignatureAlgorithmFactory --> getEcCurveFromGenesisFile
+    run --5--> createVertex
+    run --6--> validateOptions
+
+    validateOptions --> validate_options_inner("`issueOptionWarnings()
+validateP2POptions()
+validateMiningParams()
+validateNatParams()
+validateNetStatsParams()
+validateDnsOptionsParams()
+ensureValidPeerBoundParams()
+validateRpcOptionsParams()
+validateRpcWsOptions()
+validateChainDataPruningParams()
+resolveAndValidateCheckpoint()
+validateTransactionPoolOptions()
+validateDataStorageOptions()
+validateGraphQlOptions()
+validatePluginOptions()
+validateUnstabeNetworkingOptions()`")
+
+    run e2@--7--> initialProcess
+
+    initialProcess --> readGenesisConfig("`readGenesisConfig() <sm>This creates a effective genesis config and provides using a cached supplier with get method</sm>`")
+    initialProcess --> configure
+    configure--> instantiateSignatureAlgorithmFactory
+    configure --> configuration_initial_process("`checkPortClash()
+    checkIfRequiredPortsAreAvailable()
+    getDefaultSyncModeIfNotSet()
+    getDefafultVersionCompatibilityProtectionIfNotSet()
+    updateNetworkConfig()
+    if (engineApiEnabled) {createEngineJsonRpcConfiguration()}
+    configureVertexJsonDecodingMaxLength()
+    creating configs for jsonrpciapi, graphQL, webSockets, permissioning, dataStorage
+    `") 
+    configure -->  loadStaticNodes 
+    initialProcess --> setIgnorrableStorageSegments
+    initialProcess --> configureNativeLibs
+    initialProcess --"If enablePrecompileCaching"--> configurePrecompileCaching
+    initialProcess --> buildController
+    initialProcess --"Create a Runner instance"--> buildRunner --> synchronize
+    initialProcess --> startPlugins
+    initialProcess --> setReleaseMetrics 
+    initialProcess --> preSynchronization
+  end
+  subgraph "Runner.java"
+    startExternalServices
+    startEthereumMainLoop
+  end
+  initialProcess --> startExternalServices
+  initialProcess e3@--> startEthereumMainLoop
+end
+
+e1@{animate: true}
+e2@{animate: true}
+e3@{animate: true}

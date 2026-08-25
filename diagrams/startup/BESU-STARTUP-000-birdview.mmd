@@ -1,0 +1,88 @@
+---
+title: Startup Flow
+config:
+  layout: elk
+  htmlLabels: false
+  theme: neutral
+  look: handDrawn
+  elk:
+    mergeEdges: true
+    nodePlacementStrategy: LINEAR_SEGMENTS
+    nodePlacementAlignment: BALANCED
+    keepEntryNodeOnTop: true
+---
+flowchart 
+
+  %% nat module %%
+  subgraph "nat"
+    subgraph "NatService.java"
+      nat_start[["`start()`"]]
+    end
+  end
+
+  %% ethereum module %%
+  subgraph ethereum 
+    %% p2p module %%
+    subgraph p2p 
+      subgraph "NetworkRunner.java"
+        networkrunner_start[["`start()`"]]
+      end
+    end
+    subgraph "eth"
+      subgraph "TransactionPoolEvictionService.java"
+        transactionPoolEvictionService_start[["`start()`"]]
+      end
+    end
+    subgraph "ethstats"
+      subgraph "EthStatsService.java"
+        ethstatsservece_start[["`start()`"]]
+      end
+    end
+  end
+
+  %% app module %%
+  subgraph "app"
+
+    subgraph "Besu.java"
+      main(("`main()`"))
+    end
+
+    subgraph BesuCommand.java 
+      initialProcess(["`initialProcess()`"])
+      parse(["`parse()`"])
+      executeCommandLine(["`executeCommandLine()`"])
+      run[["`run()`"]]
+      startPlugins[["`startPlugins()`"]]
+
+      parse e2@--> executeCommandLine
+      executeCommandLine e3@--> run
+      run e4@--> initialProcess
+      initialProcess e11@--> startPlugins
+    end
+
+    subgraph "Runner.java"
+      startEthereumMainLoop(["`startEthereumMainLoop()`"])
+      startExternalServicePostMainLoop("`startExternalServicePostMainLoop()`")
+
+      startEthereumMainLoop e6@--> startExternalServicePostMainLoop
+    end
+    main e1@--> parse
+    initialProcess e5@--> startEthereumMainLoop
+    startEthereumMainLoop e9@--> nat_start
+    startEthereumMainLoop e7@--> networkrunner_start
+    startEthereumMainLoop e8@--> transactionPoolEvictionService_start
+    startExternalServicePostMainLoop e10@--> ethstatsservece_start
+  end
+
+%% animate edges %%
+e1@{animate : true}
+e2@{animate : true}
+e3@{animate : true}
+e4@{animate : true}
+e5@{animate : true}
+e6@{animate : true}
+e7@{animate : true}
+e8@{animate : true}
+e9@{animate : true}
+e10@{animate : true}
+e11@{animate : true}

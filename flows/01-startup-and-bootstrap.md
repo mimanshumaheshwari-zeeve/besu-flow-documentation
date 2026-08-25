@@ -12,5 +12,9 @@ Besu.main → BesuCommand.initialProcess → configure → buildController → b
 
 Important classes: `Besu`, `BesuCommand`, `BesuController`, `BesuControllerBuilder`, `Runner`, `RunnerBuilder`, `NetworkRunner`.
 
-```mermaid
-```
+- Pico CLI command runner:
+
+  - When root command is run, i.e. `BesuCommand` then the run method is called that is responsible for starting the nodes
+  - If root command is not called then sub commands are run.
+
+- s

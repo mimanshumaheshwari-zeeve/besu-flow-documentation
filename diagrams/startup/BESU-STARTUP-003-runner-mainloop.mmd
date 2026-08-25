@@ -1,0 +1,80 @@
+---
+title: Runner Flow
+config:
+  layout: elk
+  htmlLabels: false
+  theme: neutral
+  look: handDrawn
+  elk:
+    mergeEdges: true
+    nodePlacementStrategy: LINEAR_SEGMENTS
+    nodePlacementAlignment: NONE
+    keepEntryNodeOnTop: true
+---
+flowchart LR
+
+  %% nat module %%
+  subgraph "nat"
+    subgraph "NatService.java"
+      nat_start("`start()`")
+    end
+  end
+
+  %% ethereum module %%
+  subgraph ethereum 
+    %% p2p module %%
+    subgraph p2p 
+      subgraph "NetworkRunner.java"
+        networkrunner_start("`start()`")
+      end
+    end
+    subgraph "eth"
+      subgraph "TransactionPoolEvictionService.java"
+        transactionPoolEvictionService_start("`start()`")
+      end
+    end
+  end
+
+  %% app module %%
+  subgraph "app"
+    subgraph BesuCommand.java 
+      initialProcess("`initialProcess()`")
+    end
+    subgraph "MiningCoordinator.java"
+      mining_coordinator_start("`start()`")
+      mining_coordinator_subscribe("`subscribe()`")
+    end
+    subgraph "Synchronizer.java"
+      synchronizer_start("`start()`")
+    end
+    subgraph "Runner.java"
+      startEthereumMainLoop("`startEthereumMainLoop()`")
+      writeBesuPortsToFile("`writeBesuPortsToFile()`")
+      writeBesuNetworksToFile("`writeBesuNetworksToFile()`")
+      writePidFile("`writePidFile()`")
+      startExternalServicePostMainLoop("`startExternalServicePostMainLoop()`")
+
+      startEthereumMainLoop --> writeBesuPortsToFile & writeBesuNetworksToFile & writePidFile
+      startEthereumMainLoop e2@--> startExternalServicePostMainLoop
+    end
+    initialProcess e1@--> startEthereumMainLoop
+    startEthereumMainLoop --> mining_coordinator_subscribe
+    startEthereumMainLoop e3@--> mining_coordinator_start
+    startEthereumMainLoop e4@--> synchronizer_start
+
+    subgraph "BesuController.java"
+    end
+  end
+
+  startEthereumMainLoop e5@--> networkrunner_start
+  startEthereumMainLoop e6@--> transactionPoolEvictionService_start
+  startEthereumMainLoop e7@--> nat_start
+
+%% animate edges %%
+e1@{animate: true}
+e2@{animate: true}
+e3@{animate: true}
+e4@{animate: true}
+e5@{animate: true}
+e6@{animate: true}
+e7@{animate: true}
