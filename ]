@@ -45,11 +45,11 @@ flowchart LR
   subgraph "app"
     direction TD
     subgraph BesuCommand.java 
-      initialProcess["`initialProcess()`"]
+      initialProcess(["`initialProcess()`"])
     end
     subgraph "MiningCoordinator.java"
       mining_coordinator_start[["`start()`"]]
-      mining_coordinator_subscribe@{label: "subscribe", shape: lin-rect}
+      mining_coordinator_subscribe@{label: "subscribe", shape: lean-r}
     end
     subgraph "Synchronizer.java"
       synchronizer_start[["`start()`"]]
@@ -77,11 +77,11 @@ flowchart LR
   startEthereumMainLoop e6@--> transactionPoolEvictionService_start
   startEthereumMainLoop e7@--> nat_start
 
-  %% animate edges %%
-  e1@{animate: true}
-  e2@{animate: true}
-  e3@{animate: true}
-  e4@{animate: true}
-  e5@{animate: true}
-  e6@{animate: true}
-  e7@{animate: true}
+%% animate edges %%
+e1@{animate: true}
+e2@{animate: true}
+e3@{animate: true}
+e4@{animate: true}
+e5@{animate: true}
+e6@{animate: true}
+e7@{animate: true}

@@ -29,7 +29,7 @@ subgraph "app"
     run --2--> configureLogging
     run --3--> setMergeConfigOptions
     run --4--> instantiateSignatureAlgorithmFactory --> getEcCurveFromGenesisFile
-    run --5--> createVertex
+    run --5--> createVertx
     run --6--> validateOptions
 
     validateOptions --> validate_options_inner("`issueOptionWarnings()
@@ -68,7 +68,7 @@ validateUnstabeNetworkingOptions()`")
     initialProcess --> configureNativeLibs
     initialProcess --"If enablePrecompileCaching"--> configurePrecompileCaching
     initialProcess --> buildController
-    initialProcess --"Create a Runner instance"--> buildRunner --> synchronize
+    initialProcess --"Create a Runner instance"--> buildRunner --> synchronize -->|Add shutdown hook to runner| addShutDownHook
     initialProcess --> startPlugins
     initialProcess --> setReleaseMetrics 
     initialProcess --> preSynchronization
