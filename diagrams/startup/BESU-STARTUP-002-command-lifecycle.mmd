@@ -1,0 +1,164 @@
+---
+config:
+  layout: elk
+  htmlLabels: false
+  theme: neutral
+  look: classic
+  elk:
+    mergeEdges: false
+    nodePlacementStrategy: LINEAR_SEGMENTS
+    nodePlacementAlignment: BALANCED
+  flowchart:
+    nodeSpacing: 20
+    curve: base
+    defaultRenderer: elk
+    wrappingWidth: 350
+    inheritDir: false
+    rankSpacing: 10
+---
+flowchart LR
+  subgraph "metrics"
+      direction LR
+      subgraph "metrics/core"
+          subgraph "MetricsService.java"
+              metrics_service_start[["`start()`"]]
+          end
+      end
+  end
+
+  subgraph ethereum
+      direction TD
+      subgraph api
+        direction TD
+        subgraph "JsonRpcHttpService.java"
+            ethereum_api_json_rpc_http_service_start[["`start()`"]]
+        end
+        subgraph "EngineJsonRpcService.java"
+            ethereum_api_engine_api_service_start[["`start()`"]]
+        end
+        subgraph "GraphQLHttpService.java"
+            ethereum_api_grpahql_http_service_start[["`start()`"]]
+        end
+        subgraph "WebSocketService.java"
+            ethereum_api_websocket_service_start[["`start()`"]]
+        end
+        subgraph "JsonRpcIpcService.java"
+            ethereum_api_json_rpc_ipc_service_start[["`start()`"]]
+        end
+        subgraph "AutoTransactionLogBloomCachingService.java"
+            autotransactionlogbloomcachingservice_start[["`start()`"]]
+        end
+        subgraph "RpcEndpointServiceImpl.java"
+          rpcEndpointServiceImpl_init(["`init()`"])
+        end
+      end
+      subgraph "ethereum/core"
+        subgraph "BlockchainServiceImpl.java"
+          blockchain_service_impl_init(["`init()`"])
+        end
+      end
+  end
+  subgraph "app"
+      direction LR
+      subgraph "TransactionSimulationServiceImpl.java"
+        TransactionSimulationServiceImpl_init(["`init()`"])
+      end
+      
+      subgraph "BesuPluginContextImpl.java"
+          beforeExternalServices
+      end
+
+      subgraph "BesuCommand.java"
+          run
+          executeCommandLine
+          initialProcess
+
+          executeCommandLine e1@ -- 1 --> run
+
+          run -- 2 --> configureLogging
+          run -- 3 --> setMergeConfigOptions
+          run -- 4 --> instantiateSignatureAlgorithmFactory --> getEcCurveFromGenesisFile
+          run -- 5 --> createVertx
+          run -- 6 --> validateOptions
+
+          validateOptions --> validate_options_inner("`issueOptionWarnings()
+          validateP2POptions()
+          validateMiningParams()
+          validateNatParams()
+          validateNetStatsParams()
+          validateDnsOptionsParams()
+          ensureValidPeerBoundParams()
+          validateRpcOptionsParams()
+          validateRpcWsOptions()
+          validateChainDataPruningParams()
+          resolveAndValidateCheckpoint()
+          validateTransactionPoolOptions()
+          validateDataStorageOptions()
+          validateGraphQlOptions()
+          validatePluginOptions()
+          validateUnstabeNetworkingOptions()`")
+
+          run e2@ -- 7 --> initialProcess
+
+          initialProcess --> readGenesisConfig("`readGenesisConfig() <sm>This creates a effective genesis config and provides using a cached supplier with get method</sm>`")
+          initialProcess --> configure
+          configure --> instantiateSignatureAlgorithmFactory
+          configure --> engineApiEnabled{"engineApiEnabled"} --> |yes| createEngineJsonRpcConfiguration["`createEngineJsonRpcConfiguration()`"]
+          configure --> configuration_initial_process("`checkPortClash()
+          checkIfRequiredPortsAreAvailable()
+          getDefaultSyncModeIfNotSet()
+          getDefafultVersionCompatibilityProtectionIfNotSet()
+          updateNetworkConfig()
+          configureVertexJsonDecodingMaxLength()
+          creating configs for jsonrpciapi, graphQL, webSockets, permissioning, dataStorage
+          `")
+          configure --> loadStaticNodes
+          initialProcess --> setIgnorrableStorageSegments
+          initialProcess --> configureNativeLibs
+          initialProcess -- "If enablePrecompileCaching" --> configurePrecompileCaching
+          initialProcess --> buildController
+          initialProcess --> buildRunner --> synchronize --> |Add shutdown hook to runner| addShutDownHook
+          initialProcess --> startPlugins
+          initialProcess --> setReleaseMetrics
+          initialProcess --> preSynchronization
+      end
+
+      subgraph "Runner.java"
+          startExternalServices
+          startEthereumMainLoop
+      end
+
+      
+      initialProcess e4@ --> startExternalServices
+      initialProcess e5@ --> beforeExternalServices
+      initialProcess e3@ --> startEthereumMainLoop
+  end
+
+  startPlugins e13@--> TransactionSimulationServiceImpl_init
+  startPlugins e14@ --> rpcEndpointServiceImpl_init
+  startPlugins e15@--> blockchain_service_impl_init 
+
+  startExternalServices e6@ --> metrics_service_start
+  startExternalServices e7@ --> ethereum_api_json_rpc_http_service_start
+  startExternalServices e8@ --> ethereum_api_engine_api_service_start
+  startExternalServices e9@ --> ethereum_api_grpahql_http_service_start
+  startExternalServices e10@ --> ethereum_api_websocket_service_start
+  startExternalServices e11@ --> ethereum_api_json_rpc_ipc_service_start
+  startExternalServices e12@ --> autotransactionlogbloomcachingservice_start
+
+
+  e1@{animate: true}
+  e2@{animate: true}
+  e3@{animate: true}
+  e4@{animate: true}
+  e5@{animate: true}
+  e6@{animate: true}
+  e7@{animate: true}
+  e8@{animate: true}
+  e9@{animate: true}
+  e10@{animate: true}
+  e11@{animate: true}
+  e12@{animate: true}
+  e13@{animate: false}
+  e14@{animate: false}
+  e15@{animate: false}

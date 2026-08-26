@@ -34,6 +34,7 @@ flowchart LR
         networkrunner_start[["`start()`"]]
       end
     end
+    %% eth module %%
     subgraph "eth"
       subgraph "TransactionPoolEvictionService.java"
         transactionPoolEvictionService_start[["`start()`"]]
@@ -70,6 +71,11 @@ flowchart LR
     startEthereumMainLoop e4@--> synchronizer_start
 
     subgraph "BesuController.java"
+    end
+    subgraph "BesuComponent.java"
+    end
+    subgraph "BesuCommandModule.java"
+      command_moduel_node@{shape: brace, label: "Responsible for generating BesuCommand from BesuComponent, See dager docs to understand its creation."}
     end
   end
 

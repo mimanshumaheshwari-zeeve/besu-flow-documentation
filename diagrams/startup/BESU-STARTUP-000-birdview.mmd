@@ -1,5 +1,5 @@
 ---
-title: Startup Flow
+title: "Complete Startup flow"
 config:
   layout: elk
   htmlLabels: false
@@ -13,9 +13,12 @@ config:
   flowchart:
     defaultRenderer : elk
     wrappingWidth: 350
+    padding: 25
     inheritDir: false
+    nodeSpacing: 20
+    rankSpacing: 40
 ---
-flowchart TD
+flowchart LR
 
   %% nat module %%
   subgraph "nat"
@@ -26,6 +29,35 @@ flowchart TD
 
   %% ethereum module %%
   subgraph ethereum 
+    subgraph "ethereum/api"
+      direction TD
+      subgraph "RpcEndpointServiceImpl.java"
+        rpcEndpointServiceImpl_init(["`init()`"])
+      end
+      subgraph "JsonRpcHttpService.java"
+        ethereum_api_json_rpc_http_service_start[["`start()`"]]
+      end
+      subgraph "EngineJsonRpcService.java"
+        ethereum_api_engine_api_service_start[["`start()`"]]
+      end
+      subgraph "GraphQLHttpService.java"
+        ethereum_api_grpahql_http_service_start[["`start()`"]]
+      end
+      subgraph "WebSocketService.java"
+        ethereum_api_websocket_service_start[["`start()`"]]
+      end
+      subgraph "JsonRpcIpcService.java"
+        ethereum_api_json_rpc_ipc_service_start[["`start()`"]]
+      end
+      subgraph "AutoTransactionLogBloomCachingService.java"
+        autotransactionlogbloomcachingservice_start[["`start()`"]]
+      end
+    end
+    subgraph "ethereum/core"
+      subgraph "BlockchainServiceImpl.java"
+        blockchain_service_impl_init(["`init()`"])
+      end
+    end
     %% p2p module %%
     subgraph p2p 
       subgraph "NetworkRunner.java"
@@ -44,8 +76,24 @@ flowchart TD
     end
   end
 
+  subgraph "metrics"
+    direction LR
+    subgraph "metrics/core"
+      subgraph "MetricsService.java"
+        metrics_service_start[["`start()`"]]
+      end
+    end
+  end
+
   %% app module %%
   subgraph "app"
+    subgraph BesuPluginServiceRegistrar.java 
+      registerRuntimeServices(["`registerRuntimeServices()`"])
+    end
+
+    subgraph "TransactionSimulationServiceImpl.java"
+      TransactionSimulationServiceImpl_init(["`init()`"])
+    end
 
     subgraph "Besu.java"
       main(("`main()`"))
@@ -54,6 +102,7 @@ flowchart TD
     subgraph "Runner.java"
       startEthereumMainLoop(["`startEthereumMainLoop()`"])
       startExternalServicePostMainLoop("`startExternalServicePostMainLoop()`")
+      startExternalServices(["`startExternalServices()`"])
       startEthereumMainLoop e6@--> startExternalServicePostMainLoop
     end
 
@@ -72,21 +121,36 @@ flowchart TD
       run[["`run()`"]]
       startPlugins[["`startPlugins()`"]]
 
-      parse e2@--> executeCommandLine
-      executeCommandLine e3@--> run
-      run e4@--> initialProcess
-      initialProcess e11@--> startPlugins
+      parse e2@==> executeCommandLine
+      executeCommandLine e3@==> run
+      run e4@==> initialProcess
+      initialProcess e11@-->|1| startPlugins
     end
 
-    main e1@--> parse
-    initialProcess e5@--> startEthereumMainLoop
+    main e1@==> parse
+    initialProcess e5@==>|3| startEthereumMainLoop
+    initialProcess e14@==>|2| startExternalServices
     startEthereumMainLoop e9@--> nat_start
     startEthereumMainLoop e7@--> networkrunner_start
     startEthereumMainLoop e8@--> transactionPoolEvictionService_start
     startExternalServicePostMainLoop e10@--> ethstatsservece_start
     startEthereumMainLoop e12@--> mining_coordinator_start
     startEthereumMainLoop e13@--> synchronizer_start
+
+    startPlugins --> registerRuntimeServices
   end
+
+  startExternalServices e15@--> metrics_service_start
+  startExternalServices e16@--> ethereum_api_json_rpc_http_service_start
+  startExternalServices e17@--> ethereum_api_engine_api_service_start
+  startExternalServices e18@--> ethereum_api_grpahql_http_service_start
+  startExternalServices e19@--> ethereum_api_websocket_service_start
+  startExternalServices e20@--> ethereum_api_json_rpc_ipc_service_start
+  startExternalServices e21@--> autotransactionlogbloomcachingservice_start
+
+  startPlugins e23@--> TransactionSimulationServiceImpl_init
+  startPlugins e24@ --> rpcEndpointServiceImpl_init
+  startPlugins e22@--> blockchain_service_impl_init
 
 %% animate edges %%
 e1@{animate : true}
@@ -102,3 +166,14 @@ e10@{animate : true}
 e11@{animate : true}
 e12@{animate : true}
 e13@{animate : true}
+e14@{animate : true}
+e15@{animate : true}
+e16@{animate : true}
+e17@{animate : true}
+e18@{animate : true}
+e19@{animate : true}
+e20@{animate : true}
+e21@{animate : true}
+e22@{animate : false}
+e23@{animate : false}
+e24@{animate : false}
