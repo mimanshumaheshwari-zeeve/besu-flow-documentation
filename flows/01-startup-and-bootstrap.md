@@ -23,4 +23,5 @@ These command are defined in the `BesuComponent` which is used as generated clas
 
 - banned node ids are set in `BesuCommand.synchronyze()` to runner.
 
+DefaultSynchronizer:190
 

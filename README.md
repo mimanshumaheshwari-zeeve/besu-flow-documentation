@@ -4,6 +4,11 @@ Developer-oriented documentation and diagrams for Hyperledger Besu 26.7.0.
 
 This repository is separate from the official Besu source repository. Besu remains the implementation source of truth; this repository explains important runtime flows and links to the pinned source.
 
+> [!NOTE]
+> If the diagrams feel cluttered or not easy to read you can create a svg for it using the command.
+> To Install mmdc run `npm install -g @mermaid-js/mermaid-cli`
+> and run for the diagram `mmdc -i <diagram.mmd> -o <diagram.svg> -p puppeteer-config.json`
+
 ## Working conventions
 
 - Markdown files are the authoritative narrative.

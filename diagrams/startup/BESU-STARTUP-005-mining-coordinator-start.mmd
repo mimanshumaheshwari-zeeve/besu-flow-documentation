@@ -1,0 +1,21 @@
+---
+title: Mining Coordinator Flow
+config:
+  layout: elk
+  htmlLabels: false
+  theme: neutral
+  look: handDrawn
+  handDrawnSeed: 8123234
+  elk:
+    mergeEdges: true
+    nodePlacementStrategy: LINEAR_SEGMENTS
+    nodePlacementAlignment: BALANCED
+    keepEntryNodeOnTop: true
+  flowchart:
+    defaultRenderer : elk
+    wrappingWidth: 350
+    inheritDir: false
+---
+%%{init: {"flowchart": {"defaultRenderer": "elk"}} }%%
+flowchart LR
+  a --> b
