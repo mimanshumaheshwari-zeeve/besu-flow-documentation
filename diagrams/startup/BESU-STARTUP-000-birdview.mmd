@@ -1,17 +1,19 @@
 ---
 title: "Complete Startup flow"
 config:
-  layout: elk
   htmlLabels: false
+
+  layout: elk
   theme: neutral
   look: neo
+
   elk:
-    mergeEdges: true
+    mergeEdges: false
     nodePlacementStrategy: LINEAR_SEGMENTS
     nodePlacementAlignment: BALANCED
     keepEntryNodeOnTop: true
+
   flowchart:
-    defaultRenderer : elk
     wrappingWidth: 350
     padding: 25
     inheritDir: false
@@ -135,7 +137,7 @@ flowchart
     startEthereumMainLoop e8@--> transactionPoolEvictionService_start
     startExternalServicePostMainLoop e10@--> ethstatsservece_start
     startEthereumMainLoop e12@--> mining_coordinator_start
-    startEthereumMainLoop e25@--> p2pEnabled{shape: diamond} e13@-->|yes| synchronizer_start
+    startEthereumMainLoop e25@--> p2pEnabled{p2pEnabled} e13@-->|yes| synchronizer_start
 
     startPlugins --> registerRuntimeServices
   end
