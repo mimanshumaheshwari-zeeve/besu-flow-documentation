@@ -2,12 +2,13 @@
 title: "Complete Startup flow"
 config:
   htmlLabels: false
+
   layout: elk
-  theme: neutral
   look: neo
+  theme: neutral
 
   elk:
-    mergeEdges: true
+    mergeEdges: false
     nodePlacementStrategy: LINEAR_SEGMENTS
     nodePlacementAlignment: BALANCED
     keepEntryNodeOnTop: true
@@ -19,6 +20,7 @@ config:
     nodeSpacing: 20
     rankSpacing: 40
 ---
+%%{init: {"flowchart": {"defaultRenderer": "elk"}} }%%
 flowchart 
 
   %% nat module %%
