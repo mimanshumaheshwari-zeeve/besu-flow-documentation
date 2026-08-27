@@ -18,7 +18,7 @@ config:
     nodeSpacing: 20
     rankSpacing: 40
 ---
-flowchart LR
+flowchart 
 
   %% nat module %%
   subgraph "nat"
@@ -32,7 +32,7 @@ flowchart LR
     subgraph "ethereum/api"
       direction TD
       subgraph "RpcEndpointServiceImpl.java"
-        rpcEndpointServiceImpl_init(["`init()`"])
+        rpcEndpointServiceImpl_init{{"`init()`"}}
       end
       subgraph "JsonRpcHttpService.java"
         ethereum_api_json_rpc_http_service_start[["`start()`"]]
@@ -55,7 +55,7 @@ flowchart LR
     end
     subgraph "ethereum/core"
       subgraph "BlockchainServiceImpl.java"
-        blockchain_service_impl_init(["`init()`"])
+        blockchain_service_impl_init{{"`init()`"}}
       end
     end
     %% p2p module %%
@@ -92,7 +92,7 @@ flowchart LR
     end
 
     subgraph "TransactionSimulationServiceImpl.java"
-      TransactionSimulationServiceImpl_init(["`init()`"])
+      TransactionSimulationServiceImpl_init{{"`init()`"}}
     end
 
     subgraph "Besu.java"
@@ -115,7 +115,7 @@ flowchart LR
     end
 
     subgraph BesuCommand.java 
-      initialProcess(["`initialProcess()`"])
+      initialProcess{{"`initialProcess()`"}}
       parse(["`parse()`"])
       executeCommandLine(["`executeCommandLine()`"])
       run[["`run()`"]]
@@ -135,7 +135,7 @@ flowchart LR
     startEthereumMainLoop e8@--> transactionPoolEvictionService_start
     startExternalServicePostMainLoop e10@--> ethstatsservece_start
     startEthereumMainLoop e12@--> mining_coordinator_start
-    startEthereumMainLoop e13@--> synchronizer_start
+    startEthereumMainLoop e25@--> p2pEnabled{shape: diamond} e13@-->|yes| synchronizer_start
 
     startPlugins --> registerRuntimeServices
   end
@@ -177,3 +177,4 @@ e21@{animate : true}
 e22@{animate : false}
 e23@{animate : false}
 e24@{animate : false}
+e25@{animate : true}
