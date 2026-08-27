@@ -6,3 +6,5 @@ notes/runtime-observations/raw/
 *.log
 *.trace
 exports/
+
+**/*.svg
