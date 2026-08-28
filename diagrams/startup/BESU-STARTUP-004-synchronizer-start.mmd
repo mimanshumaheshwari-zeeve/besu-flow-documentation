@@ -17,7 +17,7 @@ config:
     inheritDir: false
 ---
 %%{init: {"flowchart": {"defaultRenderer": "elk"}} }%%
-flowchart LR
+flowchart
   subgraph "app"
     subgraph "Runner.java"
       startEthereumMainLoop(["`startEthereumMainLoop()`"])
@@ -26,14 +26,48 @@ flowchart LR
 
   subgraph "ethereum"
     subgraph "eth"
+      subgraph "SyncState.java"
+        markInitialSyncPhaseAsDone("`markInitialSyncPhaseAsDone()`")
+        setReachedTerminalDifficulty("`setReachedTerminalDifficulty()`")
+      end
+
+      subgraph "SyncTerminationCondition.java"
+        shouldContinueDonwload{"`shouldContinueDonwload()`"}
+      end
+
+      subgraph "SnapSyncDownloader.java"
+        snapSyncDownloader_start[["`start()`"]]
+        findPivotBlock(["`findPivotBlock()`"])
+        selectPivotBlock(["`selectPivotBlock()`"])
+        resolvePivotBlockHeader(["`resolvePivotBlockHeader()`"])
+        updateMaxTrailingPeers(["`updateMaxTrailingPeers()`"])
+        storeState(["`storeState()`"])
+        downloadChainAndWorldState(["`downloadChainAndWorldState()`"])
+        handleFailure(["`handleFailure()`"])
+
+        snapSyncDownloader_start --> findPivotBlock .->selectPivotBlock .-> resolvePivotBlockHeader .-> updateMaxTrailingPeers .-> storeState .-> downloadChainAndWorldState .-> handleFailure
+      end
+
       subgraph "DefaultSynchronizer.java"
         defaultSynchronizer_start[["`start()`"]]
+        startFullSync(["`startFullSync()`"])
+        finalizeSync(["`finalizeSync()`"])
+        fastSyncDownloader_present{"`fastSyncDownloader.isPresent()`"}
+        handleSyncResult(["`handleSyncResult()`"])
+
+        startFullSync --> finalizeSync
       end
+
       subgraph "BlockPropagationManager.java"
         blockPropagationManager_start[["`start()`"]]
         setupListeners(["`setupListeners()`"])
         blockPropagationManager_start --> setupListeners -->listerners@{shape: brace, label: "Adds listeners like onBlockAdded, handleNewBlockFromNetwork, handleNewBlockHashesFromNetwork"}
       end
+
+      fastSyncDownloader_present .->|no| markInitialSyncPhaseAsDone@{shape: brace} .->|no| startFullSync
+      defaultSynchronizer_start --> fastSyncDownloader_present .->|yes| snapSyncDownloader_start
+      handleFailure .-> handleSyncResult --> shouldContinueDonwload --yes--> startFullSync
+      shouldContinueDonwload -->|no| setReachedTerminalDifficulty@{shape: brace}
     end
   end
 
