@@ -23,5 +23,8 @@ These command are defined in the `BesuComponent` which is used as generated clas
 
 - banned node ids are set in `BesuCommand.synchronyze()` to runner.
 
-DefaultSynchronizer:190
+## TODO
+
+- Reorder the synchronizer flow. ELK version SVG is bad.
+- Start with method `DefaultSynchronizer.startFullSync():266`
 

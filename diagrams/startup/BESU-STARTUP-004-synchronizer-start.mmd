@@ -1,22 +1,25 @@
 ---
 title: Synchronizer Flow
+
 config:
-  layout: elk
   htmlLabels: false
+
+  layout: elk
   theme: neutral
   look: handDrawn
-  handDrawnSeed: 8123234
+
   elk:
     mergeEdges: true
     nodePlacementStrategy: LINEAR_SEGMENTS
     nodePlacementAlignment: BALANCED
     keepEntryNodeOnTop: true
+
   flowchart:
-    defaultRenderer : elk
     wrappingWidth: 350
     inheritDir: false
+
 ---
-%%{init: {"flowchart": {"defaultRenderer": "elk"}} }%%
+%%{init: {} }%%
 flowchart
   subgraph "app"
     subgraph "Runner.java"
@@ -26,13 +29,31 @@ flowchart
 
   subgraph "ethereum"
     subgraph "eth"
+      
+      subgraph "SyncTerminationCondition.java"
+        shouldContinueDonwload{"`shouldContinueDonwload()`"}
+      end
+
       subgraph "SyncState.java"
         markInitialSyncPhaseAsDone("`markInitialSyncPhaseAsDone()`")
         setReachedTerminalDifficulty("`setReachedTerminalDifficulty()`")
       end
 
-      subgraph "SyncTerminationCondition.java"
-        shouldContinueDonwload{"`shouldContinueDonwload()`"}
+      subgraph "BlockPropagationManager.java"
+        blockPropagationManager_start[["`start()`"]]
+        setupListeners(["`setupListeners()`"])
+
+        blockPropagationManager_start --> setupListeners -->listerners@{shape: brace, label: "Adds listeners like onBlockAdded, handleNewBlockFromNetwork, handleNewBlockHashesFromNetwork"}
+      end
+
+      subgraph "DefaultSynchronizer.java"
+        defaultSynchronizer_start[["`start()`"]]
+        startFullSync(["`startFullSync()`"])
+        finalizeSync(["`finalizeSync()`"])
+        fastSyncDownloader_present{"`fastSyncDownloader.isPresent()`"}
+        handleSyncResult(["`handleSyncResult()`"])
+
+        startFullSync --> finalizeSync
       end
 
       subgraph "SnapSyncDownloader.java"
@@ -48,21 +69,7 @@ flowchart
         snapSyncDownloader_start --> findPivotBlock .->selectPivotBlock .-> resolvePivotBlockHeader .-> updateMaxTrailingPeers .-> storeState .-> downloadChainAndWorldState .-> handleFailure
       end
 
-      subgraph "DefaultSynchronizer.java"
-        defaultSynchronizer_start[["`start()`"]]
-        startFullSync(["`startFullSync()`"])
-        finalizeSync(["`finalizeSync()`"])
-        fastSyncDownloader_present{"`fastSyncDownloader.isPresent()`"}
-        handleSyncResult(["`handleSyncResult()`"])
 
-        startFullSync --> finalizeSync
-      end
-
-      subgraph "BlockPropagationManager.java"
-        blockPropagationManager_start[["`start()`"]]
-        setupListeners(["`setupListeners()`"])
-        blockPropagationManager_start --> setupListeners -->listerners@{shape: brace, label: "Adds listeners like onBlockAdded, handleNewBlockFromNetwork, handleNewBlockHashesFromNetwork"}
-      end
 
       fastSyncDownloader_present .->|no| markInitialSyncPhaseAsDone@{shape: brace} .->|no| startFullSync
       defaultSynchronizer_start --> fastSyncDownloader_present .->|yes| snapSyncDownloader_start
@@ -71,5 +78,5 @@ flowchart
     end
   end
 
-  startEthereumMainLoop .-> defaultSynchronizer_start
   defaultSynchronizer_start --> blockPropagationManager_start
+  startEthereumMainLoop .-> defaultSynchronizer_start
