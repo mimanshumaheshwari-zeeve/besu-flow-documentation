@@ -4,7 +4,7 @@
 Besu.main → BesuCommand.initialProcess → configure → buildController → buildRunner → startExternalServices → startEthereumMainLoop → NetworkRunner.start → Synchronizer.start
 ```
 
-Important classes: `Besu`, `BesuCommand`, `BesuController`, `BesuControllerBuilder`, `Runner`, `RunnerBuilder`, `NetworkRunner`.
+Important classes: `Besu`, `BesuCommand`, `BesuController`, `BesuControllerBuilder`, `Runner`, `RunnerBuilder`, `NetworkRunner`, `QbftBlockHeightManager`, `QbftController`, `BftExecutors`, `BftProcessor`, `BftMiningCoordinator`, `SyncState`, `DefaultBlockchain`.
 
 Use Dager and Pico cli to create commands and provide context to them.
 
@@ -23,8 +23,16 @@ These command are defined in the `BesuComponent` which is used as generated clas
 
 - banned node ids are set in `BesuCommand.synchronyze()` to runner.
 
-## TODO
 
-- Reorder the synchronizer flow. ELK version SVG is bad.
-- Start with method `DefaultSynchronizer.startFullSync():266`
+- BFT Events handled by `EventMultiplexer.handleBftEvent()`
+  - `MESSAGE`
+  - `ROUND_EXPIRY`
+  - `NEW_CHAIN_HEAD`
+  - `BLOCK_TIMER_EXPIRY`
+
+- QBFT Events handled by `QbftController.handleMessage()`
+  - `Proposal`
+  - `Prepare`
+  - `Commit`
+  - `RoundChange`
 

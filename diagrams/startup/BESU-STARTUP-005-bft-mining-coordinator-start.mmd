@@ -1,0 +1,102 @@
+---
+title: Mining Coordinator Flow
+config:
+  htmlLabels: false
+
+  layout: elk
+  theme: neutral
+  look: handDrawn
+
+  elk:
+    mergeEdges: false
+    nodePlacementStrategy: LINEAR_SEGMENTS
+    nodePlacementAlignment: BALANCED
+    keepEntryNodeOnTop: true
+
+  flowchart:
+    defaultRenderer : elk
+    wrappingWidth: 350
+    inheritDir: false
+---
+%%{init: {"flowchart": {"defaultRenderer": "elk"}} }%%
+
+flowchart
+
+  subgraph "app"
+    subgraph "Runner.java"
+      startEthereumMainLoop(("`startEthereumMainLoop()`"))
+    end
+  end
+
+  subgraph "ethereum"
+    subgraph "core"
+      subgraph "DefaultBlockchain.java"
+        observeBlockAdded(["`observeBlockAdded()`"])
+      end
+    end
+
+    subgraph "eth"
+      subgraph "SyncState.java"
+        subscribeSyncStatus(["`subscribeSyncStatus()`"])
+        subscribeCompletionReached(["`subscribeCompletionReached()`"])
+        syncTargetAndIsInitialSyncPhaseDone@{shape: diamond, label: "syncState.syncTarget.isPresent or not syncState.isInitialSyncPhaseDone"}
+      end
+    end
+  end
+
+  subgraph "consensus"
+    subgraph "common"
+
+      subgraph "FutureMessageBuffer.java"
+        retrieveMessagesForHeight(["`retrieveMessagesForHeight()`"])
+      end
+
+      subgraph "BftMiningCoordinator.java"
+        bftMiningCoordinator_start[["`start()`"]]
+        bftMiningCoordinator_stop[["`stop()`"]]
+        bftMiningCoordinator_enable[["`enable()`"]]
+        bftMiningCoordinator_subscribe(["subscribe()"])
+      end
+
+      subgraph "BftProcessor.java"
+        bftProcessor_start[["`start()`"]]
+        bftProcessor_run(["`run()`"])
+      end
+
+      subgraph "EventMultiplexer.java"
+        handleBftEvent(["`handleBftEvent()`"])
+      end
+
+      subgraph "BftExecutors.java"
+        executeBftProcessor(["`executeBftProcessor()`"])
+        bftExecutors_start[["`start()`"]]
+        assertRunning("`assertRunning()`")
+      end
+
+      subgraph "BaseBftController.java"
+        eventHandler_start[["`start()`"]]
+        startNewHeightManager(["`startNewHeightManager()`"])
+        createNewHeightManager(["`createNewHeightManager()`"])
+        getCurrentHeightManager(["`getCurrentHeightManager()`"])
+        handleMessage(["`handleMessage()`"])
+      end
+    end
+  end
+
+  retrieveMessagesForHeight --> handleMessage
+  eventHandler_start --> startNewHeightManager --> createNewHeightManager --> getCurrentHeightManager & retrieveMessagesForHeight 
+  executeBftProcessor .-> |Start incoming queue in BFTProcessor Thread| bftProcessor_run
+  executeBftProcessor --> assertRunning
+  bftExecutors_start --> noteCreateBftExecuterThread@{shape: brace, label: "Creates BFT Executor Thread, but doesn't run that"}
+  bftProcessor_run -->|while shutdown is not initiated| handleBftEvent
+  bftMiningCoordinator_start -->|Only creates a BFTProcessor thread| bftProcessor_start 
+  bftMiningCoordinator_start --> bftExecutors_start & observeBlockAdded & eventHandler_start & executeBftProcessor
+  subscribeCompletionReached --> bftMiningCoordinator_start & bftMiningCoordinator_enable
+  bftMiningCoordinator_subscribe .-> subscribeCompletionReached
+  %% bftMiningCoordinator_enable & bftMiningCoordinator_start --> noteStartingBftMiningCoordinator@{shape: brace, label: "Starting BFT Mining Coordinator following sync"}
+  syncTargetAndIsInitialSyncPhaseDone -->|false| bftMiningCoordinator_enable & bftMiningCoordinator_start
+  %% bftMiningCoordinator_stop --> noteStoppingBftMiningCoordinator@{shape: brace, label: "Stopping BFT Mining Coordinator following sync"}
+  subscribeSyncStatus -->syncTargetAndIsInitialSyncPhaseDone -->|true| bftMiningCoordinator_stop 
+  bftMiningCoordinator_subscribe .-> subscribeSyncStatus
+  startEthereumMainLoop --> bftMiningCoordinator_start
+  startEthereumMainLoop .-> bftMiningCoordinator_subscribe
