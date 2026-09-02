@@ -1,0 +1,101 @@
+---
+title: QBFT consensus happy path
+config:
+  htmlLabels: false
+
+  look: handDrawn
+  theme: redux-dark-color
+
+---
+sequenceDiagram
+  autonumber
+  rect Black
+    participant BftProcessor as BftProcessor.java
+    participant EventMultiplexer as EventMultiplexer.java
+    participant QbftController as QbftController.java
+    participant QbftBlockHeightManager as QbftBlockHeightManager.java
+    Participant QbftRound as QbftRound.java
+    participant RoundState as RoundState.java
+    participant MessageFactory as MessageFactory.java
+    participant RoundChangeManager as RoundChangeManager.java
+    participant QbftMessageTransmitter as QbftMessageTransmitter.java
+    participant QbftGossiper as QbftGossiperImpl.java
+    participant UniqueMessageMulticaster as UniqueMessageMulticaster.java
+    participant ValidatorPeers as ValidatorPeers.java
+    participant NettyPeerConnection as NettyPeerConnection.java
+
+
+    create participant BftEventQueue@{ type : queue } as BftEventQueue.java
+    BftProcessor ->> BftEventQueue: start()
+    activate BftProcessor
+    Note over BftEventQueue: BlockingLinkedQueue
+    loop while not bftProcessor shutdown is set true
+      BftProcessor ->>BftEventQueue: poll(500ms timeout) return BftEvent
+      BftEventQueue ->> BftProcessor: BftEvent or null
+      opt if BftEvent is present 
+        BftProcessor ->> EventMultiplexer: handleBftEvent(BftEvent)
+        alt BftEvents.Type == MESSAGE 
+          EventMultiplexer ->> QbftController: handleMessageEvent(BftReceivedMessageEvent)
+          QbftController ->> QbftController: handleMessage(QbftMessage)
+          Note over QbftController: Use messageDecoder to decode message to BftMessage type
+          QbftController ->> QbftController: consumeMessage()
+          Note over QbftController: consumeMessage is responsible <br/> for calling all the handlers <br/> for validating round number of message
+          rect rgba(63,63,63,0.5) 
+            Note over QbftController: Gossip message start
+            QbftController -->> QbftGossiper: send(QbftMessage)
+            QbftGossiper -->> UniqueMessageMulticaster: send(message)
+            UniqueMessageMulticaster ->>ValidatorPeers:send(MessageData, denylist)
+            ValidatorPeers ->> NettyPeerConnection: sendForProtocol(protocol, messageData)
+            NettyPeerConnection ->> NettyPeerConnection: doSend(Capability, MessageData)
+            NettyPeerConnection ->>NettyPeerConnection: doSendMessage(Capability, MessageData)
+            Note over QbftController: Gossip message end
+          end
+
+          alt BftMessage is instance of Proposal
+            QbftController ->> QbftBlockHeightManager: handleProposalPayload(Proposal)
+            alt MessageAge == PRIOR_ROUND
+              Note over QbftBlockHeightManager: Ignore
+            else MessageAge ==  FUTURE_ROUND
+              opt Validate proposal message and if valid
+                QbftBlockHeightManager ->> QbftRound: startNewRound(roundNumber)
+                QbftBlockHeightManager ->> RoundChangeManager: discardRoundsPriorTo(ConsensusRoundIdentifier)
+              end
+            else MessageAge == CURRENT_ROUND
+              QbftBlockHeightManager->> QbftRound:handleProposalMessage(Proposal)
+              Note over QbftRound: get QbftBlock from Proposal.getSignedPayload().getPayload().getProposedBlock()
+              QbftRound ->> QbftRound: updateStateWithProposedBlock(Proposal)
+              QbftRound ->> RoundState: setProposedBlock(Proposal)
+              Note over RoundState: update prepared and committed values
+              opt if block accepted
+                QbftRound ->> RoundState: getProposedBlock()
+                RoundState ->> QbftRound: returns QbftBlock or null
+                QbftRound ->QbftRound: createCommitSeal(QbftBlock) return SECPSignature 
+                opt There are times handling a proposed block is enough to enter prepared.
+                  QbftRound->>QbftMessageTransmitter: multicastCommit(ConsensusRoundIdentifier, Hash, SECPSignature)
+                end
+                Note over QbftRound: can automatically add our commit message to the roundState <br/>cannot create a prepare message here, <br/>as it may be our proposal, <br/>and thus we cannot also prepare
+                QbftRound ->> MessageFactory: createCommit(ConsensusRoundIdentifier, Hash, SECPSignature)
+                MessageFactory ->> QbftRound: return Commit
+                QbftRound ->> RoundState: addCommitMessage(Commit)
+                opt It is possible sufficient commit seals are now available and the block should be imported
+                  QbftRound ->> QbftRound: importBlockToChain()
+                  QbftRound ->> QbftRound: notifyNewBlockListeneres(QbftBlock)
+                end
+              end
+              QbftRound ->> QbftRound: sendPrepare(QbftBlock)
+            end
+          else BftMessage is instance of Prepare
+            QbftController ->> QbftBlockHeightManager: handlePreparePayload(Prepare)
+          else BftMessage is instance of Commit
+            QbftController ->> QbftBlockHeightManager: handleCommitPayload(Commit)
+          else BftMessage is instance of RoundChange
+            QbftController ->> QbftBlockHeightManager: handleRoundChangePayload(RoundChange)
+          end
+        end
+      end
+    end
+    destroy BftEventQueue
+    BftProcessor ->> BftEventQueue: stop()
+    deactivate BftProcessor
+
+  end
