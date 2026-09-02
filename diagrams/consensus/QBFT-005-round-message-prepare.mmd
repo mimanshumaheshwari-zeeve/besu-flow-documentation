@@ -1,0 +1,25 @@
+---
+title: QBFT consensus Event MESSAGE-
+config:
+  htmlLabels: false
+
+  look: handDrawn
+  theme: redux-color
+
+---
+sequenceDiagram
+  autonumber
+  participant QbftController as QbftController.java
+  participant QbftBlockHeightManager as QbftBlockHeightManager.java
+  Participant QbftRound as QbftRound.java
+  participant RoundState as RoundState.java
+  participant MessageFactory as MessageFactory.java
+  participant RoundChangeManager as RoundChangeManager.java
+  participant QbftMessageTransmitter as QbftMessageTransmitter.java
+  participant UniqueMessageMulticaster as UniqueMessageMulticaster.java
+  participant OtherValidators@{type: entity} as Other Validators
+
+  alt BftMessage is instance of Prepare
+    QbftController ->> QbftBlockHeightManager: handlePreparePayload(Prepare)
+    QbftBlockHeightManager ->> QbftBlockHeightManager: actionOrBufferMessage()
+  end

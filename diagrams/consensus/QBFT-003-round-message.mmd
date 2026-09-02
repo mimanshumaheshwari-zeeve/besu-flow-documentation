@@ -1,0 +1,66 @@
+---
+title: QBFT consensus Event MESSAGE
+config:
+  htmlLabels: false
+
+  look: handDrawn
+  theme: redux-dark-color
+
+---
+sequenceDiagram
+  autonumber
+  participant BftProcessor as BftProcessor.java
+  participant EventMultiplexer as EventMultiplexer.java
+  participant QbftController as QbftController.java
+  participant QbftBlockHeightManager as QbftBlockHeightManager.java
+  participant QbftGossiper as QbftGossiperImpl.java
+  participant UniqueMessageMulticaster as UniqueMessageMulticaster.java
+  participant ValidatorPeers as ValidatorPeers.java
+  participant NettyPeerConnection as NettyPeerConnection.java
+
+  create participant BftEventQueue@{ type : queue } as BftEventQueue.java
+  BftProcessor ->> BftEventQueue: start()
+  activate BftProcessor
+  Note over BftEventQueue: BlockingLinkedQueue
+  loop while not bftProcessor shutdown is set true
+    BftProcessor ->>BftEventQueue: poll(500ms timeout) return BftEvent
+    BftEventQueue ->> BftProcessor: BftEvent or null
+    opt if BftEvent is present 
+      BftProcessor ->> EventMultiplexer: handleBftEvent(BftEvent)
+      alt BftEvents.Type == MESSAGE 
+        EventMultiplexer ->> QbftController: handleMessageEvent(BftReceivedMessageEvent)
+        QbftController ->> QbftController: handleMessage(QbftMessage)
+        Note over QbftController: Use messageDecoder to decode message to BftMessage type
+        QbftController ->> QbftController: consumeMessage()
+        Note over QbftController: consumeMessage is responsible <br/> for calling all the handlers <br/> for validating round number of message
+        rect rgba(63,63,63,0.5) 
+          Note over QbftController: Gossip message start
+          QbftController -->> QbftGossiper: send(QbftMessage)
+          QbftGossiper -->> UniqueMessageMulticaster: send(message)
+          UniqueMessageMulticaster ->>ValidatorPeers:send(MessageData, denylist)
+          ValidatorPeers ->> NettyPeerConnection: sendForProtocol(protocol, messageData)
+          NettyPeerConnection ->> NettyPeerConnection: doSend(Capability, MessageData)
+          NettyPeerConnection ->>NettyPeerConnection: doSendMessage(Capability, MessageData)
+          participant OtherValidators@{type: entity} as Other Validators
+          NettyPeerConnection -->> OtherValidators: Gossip same MESSAGE
+          Note over QbftController: Gossip message end
+
+        end
+
+        alt BftMessage is instance of Proposal
+          QbftController ->> QbftBlockHeightManager: handleProposalPayload(Proposal)
+        else BftMessage is instance of Prepare
+          QbftController ->> QbftBlockHeightManager: handlePreparePayload(Prepare)
+        else BftMessage is instance of Commit
+          QbftController ->> QbftBlockHeightManager: handleCommitPayload(Commit)
+        else BftMessage is instance of RoundChange
+          QbftController ->> QbftBlockHeightManager: handleRoundChangePayload(RoundChange)
+        end
+      end
+    end
+  end
+
+  destroy BftEventQueue
+  BftProcessor ->> BftEventQueue: stop()
+  deactivate BftProcessor
+
