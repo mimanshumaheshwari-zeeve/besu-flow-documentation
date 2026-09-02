@@ -1,7 +1,8 @@
 ---
-title: QBFT Consensus startup flow
+title: QBFT consensus Happy path round
 config:
   htmlLabels: false
+
   theme: neutral
   look: handDrawn
 
@@ -10,7 +11,36 @@ config:
 
 sequenceDiagram
   autonumber
+  participant Runner as Runner.java
+  participant DefaultSynchronizer as DefaultSynchronizer.java
+  participant BftMiningCoordinator as BftMiningCoordinator.java
+  participant BftExecutors as BftExecutors.java
+  participant BftProcessor as BftProcessor.java
+  participant QbftController as QbftController.java
+  %% participant BftEventHandler as BftEventHandler.java %% QbftController is the implementation for this
+  %% participant EventMultiplexer as EventMultiplexer.java %% will eventually call QbftController
 
-  box "consensus/qbft-core"
-    participant QbftController
+
+  Runner ->> BftMiningCoordinator: subscribe()
+  Note over BftMiningCoordinator: Depending on Sync State <br/> will start or stop mining Coordinator
+  Runner ->> DefaultSynchronizer: start()
+  Runner ->> BftMiningCoordinator: start()
+  activate BftMiningCoordinator
+  Note over BftMiningCoordinator: change state to Running
+  BftMiningCoordinator ->>BftProcessor: start()
+  BftMiningCoordinator -->>BftExecutors: start()
+  Note over BftExecutors: Set state to running <br/> create thread to process bftProcessor
+  BftMiningCoordinator ->>QbftController: start()
+  Note over QbftController: Set state to running
+  BftMiningCoordinator -->>BftExecutors: executeBftProcessor(bftProcessor)
+  BftExecutors -->>BftProcessor: run()
+
+  create participant BftEventQueue
+  BftProcessor ->> BftEventQueue: start()
+  loop while not shutdown
+    BftProcessor ->BftProcessor: nextEvent()
   end
+  destroy BftEventQueue
+  BftProcessor ->> BftEventQueue: stop()
+
+  deactivate BftMiningCoordinator
