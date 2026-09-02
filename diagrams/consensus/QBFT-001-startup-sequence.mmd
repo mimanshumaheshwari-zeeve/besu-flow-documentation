@@ -1,16 +1,16 @@
 ---
-title: QBFT consensus Happy path round
+title: QBFT consensus startup
 config:
   htmlLabels: false
 
-  theme: neutral
-  look: handDrawn
+  theme: redux-dark-color
 
 ---
-%%{init: { }%%
-
 sequenceDiagram
   autonumber
+  actor cli as CLI
+  participant Besu as Besu.java
+  participant BesuCommand as BesuCommand.java
   participant Runner as Runner.java
   participant DefaultSynchronizer as DefaultSynchronizer.java
   participant BftMiningCoordinator as BftMiningCoordinator.java
@@ -18,9 +18,11 @@ sequenceDiagram
   participant BftProcessor as BftProcessor.java
   participant QbftController as QbftController.java
   %% participant BftEventHandler as BftEventHandler.java %% QbftController is the implementation for this
-  %% participant EventMultiplexer as EventMultiplexer.java %% will eventually call QbftController
+  participant EventMultiplexer as EventMultiplexer.java
 
-
+  cli ->> Besu: main()
+  Besu ->> BesuCommand : parse()
+  BesuCommand ->>Runner: startEthereumMainLoop()
   Runner ->> BftMiningCoordinator: subscribe()
   Note over BftMiningCoordinator: Depending on Sync State <br/> will start or stop mining Coordinator
   Runner ->> DefaultSynchronizer: start()
@@ -35,12 +37,18 @@ sequenceDiagram
   BftMiningCoordinator -->>BftExecutors: executeBftProcessor(bftProcessor)
   BftExecutors -->>BftProcessor: run()
 
-  create participant BftEventQueue
+  create participant BftEventQueue@{ type : queue } as BftEventQueue.java
   BftProcessor ->> BftEventQueue: start()
-  loop while not shutdown
-    BftProcessor ->BftProcessor: nextEvent()
+  activate BftProcessor
+  Note over BftEventQueue: BlockingLinkedQueue
+  loop while not bftProcessor shutdown is set true
+    BftEventQueue ->> BftProcessor: poll(500ms timeout) return BftEvent
+    opt if BftEvent is present 
+      BftProcessor ->> EventMultiplexer: handleBftEvent(BftEvent)
+    end
   end
   destroy BftEventQueue
   BftProcessor ->> BftEventQueue: stop()
+  deactivate BftProcessor
 
   deactivate BftMiningCoordinator
