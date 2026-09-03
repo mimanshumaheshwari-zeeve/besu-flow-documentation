@@ -1,22 +1,23 @@
 ---
-title: QBFT consensus round
+title: QBFT consensus Event ROUND_EXPIRY
 config:
   htmlLabels: false
 
   look: handDrawn
-  theme: redux-dark-color
+  theme: redux-color
 
 ---
 sequenceDiagram
   autonumber
-
-  participant BftExecutors as BftExecutors.java
   participant BftProcessor as BftProcessor.java
   participant EventMultiplexer as EventMultiplexer.java
   participant BftEventHandlerAdaptor as BftEventHandlerAdaptor.java
   participant QbftController as QbftController.java
-
-  BftExecutors -->>BftProcessor: run()
+  participant QbftBlockHeightManager as QbftBlockHeightManager.java
+  participant QbftGossiper as QbftGossiperImpl.java
+  participant UniqueMessageMulticaster as UniqueMessageMulticaster.java
+  participant ValidatorPeers as ValidatorPeers.java
+  participant NettyPeerConnection as NettyPeerConnection.java
 
   create participant BftEventQueue@{ type : queue } as BftEventQueue.java
   BftProcessor ->> BftEventQueue: start()
@@ -25,21 +26,15 @@ sequenceDiagram
   loop while not bftProcessor shutdown is set true
     BftProcessor ->>BftEventQueue: poll(500ms timeout) return BftEvent
     BftEventQueue ->> BftProcessor: BftEvent or null
-    opt if BftEvent is present
+    opt if BftEvent is present 
       BftProcessor ->> EventMultiplexer: handleBftEvent(BftEvent)
-      alt BftEvents.Type == MESSAGE
-        EventMultiplexer ->> BftEventHandlerAdaptor: handleMessageEvent(BftReceivedMessageEvent)
-        BftEventHandlerAdaptor ->> QbftController: handleMessageEvent(BftReceivedMessageEvent)
-      else BftEvents.Type == ROUND_EXPIRY
-        EventMultiplexer ->> QbftController: handleRoundExpiry(RoundExpiry);
-      else BftEvents.Type == NEW_CHAIN_HEAD:
-        EventMultiplexer ->> QbftController: handleNewBlockEvent(NewChainHead);
-      else BftEvents.Type == BLOCK_TIMER_EXPIRY
-        EventMultiplexer ->> QbftController: handleBlockTimerExpiry(BlockTimerExpiry);
+      alt BftEvents.Type == ROUND_EXPIRY
+        EventMultiplexer ->> BftEventHandlerAdaptor: handleRoundExpiry(RoundExpiry)
+        BftEventHandlerAdaptor ->> QbftController: handleRoundExpiry(RoundExpiry)
       end
     end
   end
+
   destroy BftEventQueue
   BftProcessor ->> BftEventQueue: stop()
   deactivate BftProcessor
-

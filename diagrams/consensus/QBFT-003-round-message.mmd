@@ -11,6 +11,7 @@ sequenceDiagram
   autonumber
   participant BftProcessor as BftProcessor.java
   participant EventMultiplexer as EventMultiplexer.java
+  participant BftEventHandlerAdaptor as BftEventHandlerAdaptor.java
   participant QbftController as QbftController.java
   participant QbftBlockHeightManager as QbftBlockHeightManager.java
   participant QbftGossiper as QbftGossiperImpl.java
@@ -28,7 +29,8 @@ sequenceDiagram
     opt if BftEvent is present 
       BftProcessor ->> EventMultiplexer: handleBftEvent(BftEvent)
       alt BftEvents.Type == MESSAGE 
-        EventMultiplexer ->> QbftController: handleMessageEvent(BftReceivedMessageEvent)
+        EventMultiplexer ->> BftEventHandlerAdaptor: handleMessageEvent(BftReceivedMessageEvent)
+        BftEventHandlerAdaptor->> QbftController: handleMessageEvent(BftReceivedMessageEvent)
         QbftController ->> QbftController: handleMessage(QbftMessage)
         Note over QbftController: Use messageDecoder to decode message to BftMessage type
         QbftController ->> QbftController: consumeMessage()
