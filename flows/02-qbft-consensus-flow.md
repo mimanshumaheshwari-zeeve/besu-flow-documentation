@@ -14,12 +14,12 @@
 - all Message where round identifier is less than equal to chain head block number are ignored
   - Discard all messages which target the BLOCK-CHAIN height (which SHOULD be 1 less than the `currentHeightManager`, but CAN be the same directly following import).
 
--  peers should not be used for accessing the network as it does not enforce the "only send once" filter applied by the `UniqueMessageMulticaster`.
+- peers should not be used for accessing the network as it does not enforce the "only send once" filter applied by the `UniqueMessageMulticaster`.
   - They use `istanbul` protocol
 
 
-## TODO
+## Flows TODO
 
 - `QbftRound.java:374` `blockImporter.importBlock(...)`
-- `QbftBlockHeightManager.java` `actionOrBufferMessage()`
-
+- `NettyPeerConnection.java`
+- `QbftRound.notifyNewBlockListeneres(...)`
