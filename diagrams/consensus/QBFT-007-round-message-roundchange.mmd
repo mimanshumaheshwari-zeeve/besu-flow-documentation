@@ -19,7 +19,6 @@ sequenceDiagram
   participant UniqueMessageMulticaster as UniqueMessageMulticaster.java
   participant OtherValidators@{type: entity} as Other Validators
 
-  alt BftMessage is instance of Prepare
-    QbftController ->> QbftBlockHeightManager: handlePreparePayload(Prepare)
-    QbftBlockHeightManager ->> QbftBlockHeightManager: actionOrBufferMessage()
+  alt BftMessage is instance of RoundChange
+    QbftController ->> QbftBlockHeightManager: handleRoundChangePayload(RoundChange)
   end
