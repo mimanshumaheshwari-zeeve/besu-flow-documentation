@@ -13,8 +13,6 @@ sequenceDiagram
   participant QbftBlockHeightManager as QbftBlockHeightManager.java
   Participant QbftRound as QbftRound.java
   participant RoundState as RoundState.java
-  participant MessageFactory as MessageFactory.java
-  participant RoundChangeManager as RoundChangeManager.java
   participant QbftMessageTransmitter as QbftMessageTransmitter.java
   participant UniqueMessageMulticaster as UniqueMessageMulticaster.java
   participant OtherValidators@{type: entity} as Other Validators
@@ -22,4 +20,20 @@ sequenceDiagram
   alt BftMessage is instance of Prepare
     QbftController ->> QbftBlockHeightManager: handlePreparePayload(Prepare)
     QbftBlockHeightManager ->> QbftBlockHeightManager: actionOrBufferMessage()
+    alt MessageAge == CURRENT_ROUND
+      opt If currentRound is present 
+        QbftBlockHeightManager ->> QbftRound: handlePrepareMessage(Prepare)
+        QbftRound ->> QbftRound : peerIsPrepared(Prepare)
+        QbftRound ->> RoundState: addPrepareMessage(Prepare)
+        QbftRound ->> RoundState: getProposedBlock()
+        RoundState ->> QbftRound: return QbftBlock
+        QbftRound ->> QbftMessageTransmitter: multicastCommit(ConsensusRoundIdentifier, Hash, SECPSignature)
+        QbftMessageTransmitter ->> UniqueMessageMulticaster: send()
+        UniqueMessageMulticaster -->> OtherValidators: MESSAGE-COMMIT
+      end
+    else MessageAge == FUTURE_ROUND
+      QbftBlockHeightManager ->> QbftBlockHeightManager: Create new RoundState
+      QbftBlockHeightManager ->> RoundState: addPrepareMessage()
+      RoundState --> RoundState: Update prepared and commited state in RoundState
+    end
   end
