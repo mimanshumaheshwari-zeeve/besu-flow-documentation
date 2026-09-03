@@ -1,5 +1,5 @@
 ---
-title: QBFT consensus Event MESSAGE-
+title: QBFT consensus Event MESSAGE-ROUND_CHANGE
 config:
   htmlLabels: false
 
@@ -13,6 +13,8 @@ sequenceDiagram
   participant QbftBlockHeightManager as QbftBlockHeightManager.java
   Participant QbftRound as QbftRound.java
   participant RoundState as RoundState.java
+  participant RoundChangeArtifiacts as RoundChangeArtifiacts.java
+  %% participant QbftFinalStateImpl as QbftFinalStateImpl.java
   participant MessageFactory as MessageFactory.java
   participant RoundChangeManager as RoundChangeManager.java
   participant QbftMessageTransmitter as QbftMessageTransmitter.java
@@ -21,4 +23,79 @@ sequenceDiagram
 
   alt BftMessage is instance of RoundChange
     QbftController ->> QbftBlockHeightManager: handleRoundChangePayload(RoundChange)
+    QbftBlockHeightManager ->> RoundChangeManager: storeAndLogRoundChangeSummary(RoundChange)
+    opt If Message is valid 
+      Note over RoundChangeManager: log the details <br/>update the round change cache <br/>in RoundChangeManager
+    end
+    break MessageAge == PRIOR_ROUND
+      Note over QbftBlockHeightManager: Ignore the Prior rounds and return
+    end
+    QbftBlockHeightManager ->> RoundChangeManager: appendRoundChangeMessage(RoundChange)
+    opt If Message is valid
+      RoundChangeManager -> RoundChangeManager: storeRoundChangeMessage(RoundChange)
+      Note over RoundChangeManager: Update round change cache
+    end
+    alt If isEarlyRoundChangeEnabled == false 
+      opt if Result is presnet 
+        opt MessageAge == FUTURE_ROUND
+          QbftBlockHeightManager ->QbftBlockHeightManager: startNewRound(targetRound)
+          QbftBlockHeightManager ->> RoundChangeManager: discardRoundsPriorTo(ConsensusRoundIdentifier)
+        end
+        QbftBlockHeightManager -->>RoundChangeArtifiacts: create(RoundChange)
+        RoundChangeArtifiacts -->> QbftBlockHeightManager: returns RoundChangeArtifiacts roundChangeMetadata
+        create Participant QbftFinalStateImpl as QbftFinalStateImpl.java
+        QbftBlockHeightManager -> QbftFinalStateImpl: isLocalNodeProposerForRound(ConsensusRoundIdentifier)
+        create participant BftProposerSelecter as BftProposerSelecter.java
+        QbftFinalStateImpl -> BftProposerSelecter: selectProposerForRound(ConsensusRoundIdentifier)
+        destroy BftProposerSelecter
+        BftProposerSelecter ->> QbftFinalStateImpl: returns address of next proposer 
+        destroy QbftFinalStateImpl
+        QbftFinalStateImpl ->> QbftBlockHeightManager: returns true if proposer is same
+        opt if local node is Proposal for round 
+          opt if currentRound is empty
+            QbftBlockHeightManager ->QbftBlockHeightManager: startNewRound(0)
+            QbftBlockHeightManager ->> RoundChangeManager: discardRoundsPriorTo(ConsensusRoundIdentifier)
+          end
+          QbftBlockHeightManager ->> QbftRound: startRoundWith(RoundChangeArtifiacts roundChangeMetadata)
+          QbftRound ->> QbftRound: updateStateWithProposalAndTransmit()
+          QbftRound ->> MessageFactory: createProposal()
+          QbftRound ->> QbftMessageTransmitter: multicastProposal()
+          QbftMessageTransmitter --> MessageFactory: createProposal()
+          MessageFactory ->> QbftMessageTransmitter: returns Proposal
+          QbftMessageTransmitter->> UniqueMessageMulticaster: send(Proposal)
+          UniqueMessageMulticaster-->> OtherValidators: MESSAGE-PROPOSAL
+          QbftRound ->> QbftRound: updateStateWithProposedBlock(Proposal)
+          QbftRound ->> RoundState: setProposedBlock(Proposal)
+          Note over RoundState: update prepared and committed values
+          opt if block accepted
+            QbftRound ->> RoundState: getProposedBlock()
+            RoundState ->> QbftRound: returns QbftBlock or null
+            QbftRound ->QbftRound: createCommitSeal(QbftBlock) return SECPSignature 
+            opt There are times handling a proposed block is enough to enter prepared.
+              QbftRound->>QbftMessageTransmitter: multicastCommit(ConsensusRoundIdentifier, Hash, SECPSignature)
+            end
+            Note over QbftRound: can automatically add our commit message to the roundState <br/>cannot create a prepare message here, <br/>as it may be our proposal, <br/>and thus we cannot also prepare
+            QbftRound ->> MessageFactory: createCommit(ConsensusRoundIdentifier, Hash, SECPSignature)
+            MessageFactory ->> QbftRound: return Commit
+            QbftRound ->> RoundState: addCommitMessage(Commit)
+            opt It is possible sufficient commit seals are now available and the block should be imported
+              QbftRound ->> QbftRound: importBlockToChain()
+              QbftRound ->> QbftRound: notifyNewBlockListeneres(QbftBlock)
+            end
+          end
+          QbftRound ->> QbftRound: sendPrepare(QbftBlock)
+          QbftRound ->> MessageFactory: createPrepare(ConsensusRoundIdentifier, Hash)
+          MessageFactory ->>QbftRound: creates a Prepare message
+          QbftRound ->> QbftRound: peerIsPrepared(Prepare)
+          RoundState ->> RoundState: addPrepareMessage(Prepare)
+          QbftRound ->>QbftMessageTransmitter:multicastCommit(ConsensusRoundIdentifier, Hash, SECPSignature)
+          QbftMessageTransmitter ->> UniqueMessageMulticaster: send()
+          UniqueMessageMulticaster -->> OtherValidators: MESSAGE-COMMIT
+          QbftRound ->>QbftMessageTransmitter:multicastPrepare(ConsensusRoundIdentifier, Hash)
+          QbftMessageTransmitter ->> UniqueMessageMulticaster: send()
+          UniqueMessageMulticaster -->> OtherValidators: MESSAGE-PREPARE
+        end
+      end
+    else If isEarlyRoundChangeEnabled == true
+    end
   end
