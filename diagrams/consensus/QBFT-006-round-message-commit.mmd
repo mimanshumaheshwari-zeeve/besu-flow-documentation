@@ -13,12 +13,22 @@ sequenceDiagram
   participant QbftBlockHeightManager as QbftBlockHeightManager.java
   Participant QbftRound as QbftRound.java
   participant RoundState as RoundState.java
-  participant MessageFactory as MessageFactory.java
-  participant RoundChangeManager as RoundChangeManager.java
-  participant QbftMessageTransmitter as QbftMessageTransmitter.java
-  participant UniqueMessageMulticaster as UniqueMessageMulticaster.java
-  participant OtherValidators@{type: entity} as Other Validators
 
   alt BftMessage is instance of Commit
     QbftController ->> QbftBlockHeightManager: handleCommitPayload(Commit)
+    QbftBlockHeightManager ->> QbftBlockHeightManager: actionOrBufferMessage()
+    alt MessageAge == CURRENT_ROUND
+      opt If currentRound is present 
+        QbftBlockHeightManager ->> QbftRound: handlePrepareMessage(Commit)
+        QbftRound ->> QbftRound : peerIsCommited(Commit)
+        QbftRound ->> RoundState: addCommitMessage(Commit)
+        RoundState ->> RoundState: updateState()
+        QbftRound ->> QbftRound: importBlockToChain()
+        QbftRound ->> QbftRound: notifyNewBlockListeneres(QbftBlock)
+      end
+    else MessageAge == FUTURE_ROUND
+      QbftBlockHeightManager ->> QbftBlockHeightManager: Create new RoundState
+      QbftBlockHeightManager ->> RoundState: addCommitMessage()
+      RoundState --> RoundState: Update prepared and commited state in RoundState
+    end
   end
