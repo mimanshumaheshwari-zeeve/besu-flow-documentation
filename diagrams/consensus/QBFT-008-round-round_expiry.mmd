@@ -4,7 +4,7 @@ config:
   htmlLabels: false
 
   look: handDrawn
-  theme: redux-color
+  theme: redux-dark-color
 
 ---
 sequenceDiagram
@@ -14,10 +14,10 @@ sequenceDiagram
   participant BftEventHandlerAdaptor as BftEventHandlerAdaptor.java
   participant QbftController as QbftController.java
   participant QbftBlockHeightManager as QbftBlockHeightManager.java
-  participant QbftGossiper as QbftGossiperImpl.java
+  participant QbftMessageTransmitter as QbftMessageTransmitter.java
+  participant MessageFactory as MessageFactory.java
   participant UniqueMessageMulticaster as UniqueMessageMulticaster.java
-  participant ValidatorPeers as ValidatorPeers.java
-  participant NettyPeerConnection as NettyPeerConnection.java
+  participant OtherValidators@{type: entity} as Other Validators
 
   create participant BftEventQueue@{ type : queue } as BftEventQueue.java
   BftProcessor ->> BftEventQueue: start()
@@ -31,6 +31,24 @@ sequenceDiagram
       alt BftEvents.Type == ROUND_EXPIRY
         EventMultiplexer ->> BftEventHandlerAdaptor: handleRoundExpiry(RoundExpiry)
         BftEventHandlerAdaptor ->> QbftController: handleRoundExpiry(RoundExpiry)
+        break roundExpiry.getView().getSequenceNumber() <= blockchain.getChainHeadBlockNumber()
+          Note over QbftController: Discard all messages <br/>which target the BLOCKCHAIN height <br/>(which SHOULD be 1 less than the currentHeightManager, <br/>but CAN be the same directly following import).
+        end
+        opt If message is for current blockchain height
+          QbftController ->> QbftBlockHeightManager: roundExpired(RoundExpiry)
+          break If not for current round 
+            Note over QbftBlockHeightManager: return
+          end
+        end
+        QbftBlockHeightManager ->> QbftBlockHeightManager: doRoundChange()
+        QbftBlockHeightManager ->> QbftBlockHeightManager: startNewRound(newRoundNumber)
+        QbftBlockHeightManager ->> RoundChangeManager: discardRoundsPriorTo(ConsensusRoundIdentifier)
+        QbftBlockHeightManager ->> QbftBlockHeightManager: handleRoundChangePayload(localRoundChange)
+        QbftBlockHeightManager ->> QbftMessageTransmitter: multicastRoundChange()
+        QbftMessageTransmitter ->> MessageFactory: createRoundChange()
+        MessageFactory ->> QbftMessageTransmitter: returns RoundChange
+        QbftMessageTransmitter ->> UniqueMessageMulticaster: send(RoundChangeMessageData)
+        UniqueMessageMulticaster -->> OtherValidators: ROUND_CHANGE
       end
     end
   end

@@ -23,3 +23,10 @@
 - `QbftRound.java:374` `blockImporter.importBlock(...)`
 - `NettyPeerConnection.java`
 - `QbftRound.notifyNewBlockListeneres(...)`
+- DB state
+- Block production slows down, transaction pool
+
+- `QbftBlockHeightManager.buildBlockAndMaybePropose()`
+  - Only stay idle while the chain is genuinely quiet.
+  - If a transaction has arrived after the block period but before the empty block period, the block this height would produce is now non-empty.
+  - Usually the proposer would receive the transaction over P2P and break out of its empty block timer, but if the proposer crashes during the empty block period the chain is stalled until the full empty block period expires (possibly many minutes or hours).

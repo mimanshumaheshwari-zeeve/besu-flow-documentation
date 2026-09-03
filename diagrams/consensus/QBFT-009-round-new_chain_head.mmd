@@ -1,0 +1,61 @@
+---
+title: QBFT consensus Event NEW_CHAIN_HEAD
+config:
+  htmlLabels: false
+
+  look: handDrawn
+  theme: redux-dark-color
+
+---
+sequenceDiagram
+  autonumber
+  participant BftProcessor as BftProcessor.java
+  participant EventMultiplexer as EventMultiplexer.java
+  participant BftEventHandlerAdaptor as BftEventHandlerAdaptor.java
+  participant QbftController as QbftController.java
+  participant QbftBlockHeightManager as QbftBlockHeightManager.java
+
+  create participant BftEventQueue@{ type : queue } as BftEventQueue.java
+  BftProcessor ->> BftEventQueue: start()
+  activate BftProcessor
+  Note over BftEventQueue: BlockingLinkedQueue
+  loop while not bftProcessor shutdown is set true
+    BftProcessor ->>BftEventQueue: poll(500ms timeout) return BftEvent
+    BftEventQueue ->> BftProcessor: BftEvent or null
+    opt if BftEvent is present 
+      BftProcessor ->> EventMultiplexer: handleBftEvent(BftEvent)
+      alt BftEvents.Type == NEW_CHAIN_HEAD
+        EventMultiplexer ->> BftEventHandlerAdaptor: handleNewBlockEvent(NewChainHead)
+        BftEventHandlerAdaptor ->> QbftController: handleNewBlockEvent(NewChainHead)
+        break If the new block number is less than the current mining parent
+          Note over QbftController: Discarding NewChainHead event, <br/>was for previous block height.
+        end
+        break If the new block number == the current mining parent 
+          Note over QbftController: return as this is discarding duplicate or there is a fork
+        end
+        QbftController ->> QbftController: startNewHeightManager(QbftBlockHeader)
+        QbftController ->> QbftController: createNewHeightManager()
+        Note over QbftBlockHeightManager: If the local node is validator it creates Full block height manager<br/>else if a non validator then creates a no op block height manager
+        create participant FutureMessageBuffer@{type : queue} as FutureMessageBuffer<QbftMessage>
+        QbftController ->> FutureMessageBuffer: retrieveMessagesForHeight(newChainHeight)
+          loop while QbftMessage are present in FutureMessageBuffer
+            QbftController ->> QbftController: handleMessage(QbftMessage)
+            alt BftMessage is instance of Proposal
+              QbftController ->> QbftBlockHeightManager: handleProposalPayload(Proposal)
+            else BftMessage is instance of Prepare
+              QbftController ->> QbftBlockHeightManager: handlePreparePayload(Prepare)
+            else BftMessage is instance of Commit
+              QbftController ->> QbftBlockHeightManager: handleCommitPayload(Commit)
+            else BftMessage is instance of RoundChange
+              QbftController ->> QbftBlockHeightManager: handleRoundChangePayload(RoundChange)
+            end
+          end
+        destroy FutureMessageBuffer
+        FutureMessageBuffer ->> QbftController: Consume messages
+      end
+    end
+  end
+
+  destroy BftEventQueue
+  BftProcessor ->> BftEventQueue: stop()
+  deactivate BftProcessor

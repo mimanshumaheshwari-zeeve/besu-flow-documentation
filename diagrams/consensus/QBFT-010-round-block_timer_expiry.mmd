@@ -1,0 +1,76 @@
+---
+title: QBFT consensus Event BLOCK_TIMER_EXPIRY
+config:
+  htmlLabels: false
+
+  look: handDrawn
+  theme: redux-dark-color
+
+---
+sequenceDiagram
+  autonumber
+  participant BftProcessor as BftProcessor.java
+  participant EventMultiplexer as EventMultiplexer.java
+  participant BftEventHandlerAdaptor as BftEventHandlerAdaptor.java
+  participant QbftController as QbftController.java
+  participant QbftBlockHeightManager as QbftBlockHeightManager.java
+  participant QbftFinalState as QbftFinalState.java
+  participant QbftRound as QbftRound.java
+  participant QbftBlockCreatorAdaptor as QbftBlockCreatorAdaptor.java
+
+  create participant BftEventQueue@{ type : queue } as BftEventQueue.java
+  BftProcessor ->> BftEventQueue: start()
+  activate BftProcessor
+  Note over BftEventQueue: BlockingLinkedQueue
+  loop while not bftProcessor shutdown is set true
+    BftProcessor ->>BftEventQueue: poll(500ms timeout) return BftEvent
+    BftEventQueue ->> BftProcessor: BftEvent or null
+    opt if BftEvent is present 
+      BftProcessor ->> EventMultiplexer: handleBftEvent(BftEvent)
+      alt BftEvents.Type == BLOCK_TIMER_EXPIRY
+        EventMultiplexer ->> BftEventHandlerAdaptor: handleBlockTimerExpiry(blockTimerExpiry);
+        BftEventHandlerAdaptor ->> QbftController: handleBlockTimerExpiry(blockTimerExpiry);
+        break return
+          Note over QbftController: Discard block timer events <br/>that target a height already on the blockchain <br/>(e.g., block was imported via peer sync while the timer was pending). <br/>Same guard as handleRoundExpiry.
+        end
+        opt if messsage is for current height 
+          QbftController ->> QbftBlockHeightManager: handleBlockTimerExpiry(ConsensusRoundIdentifier)
+          break current round is presnet 
+            Note over QbftBlockHeightManager: It is possible for the block timer to take longer than it should due to the precision of<br/>the timer in Java and the OS. This means occasionally the proposal can arrive before the<br/>block timer expiry and hence the round has already been set. There is no negative impact<br/>on the protocol in this case.
+          end
+        end
+
+        QbftBlockHeightManager ->> QbftBlockHeightManager: startNewRound(0)
+        QbftBlockHeightManager ->> RoundChangeManager: discardRoundsPriorTo(ConsensusRoundIdentifier)
+
+        QbftBlockHeightManager ->> QbftBlockHeightManager: logValidatorChanges(QbftRound)
+        opt if nodes round identifier matches the qbft message round identifier
+          QbftBlockHeightManager ->> QbftBlockHeightManager: buildBlockAndMaybePropose(ConsensusRoundIdentifier, QbftRound)
+          Note over QbftBlockHeightManager: mining will be checked against round 0 as the current round is initialised to 0 above
+          break if local node is NOT proposer for round
+            QbftBlockHeightManager ->> QbftBlockHeightManager: wouldCreateEmptyBlock(QbftRound)
+            QbftBlockHeightManager ->> QbftRound: createBlock()
+            QbftRouny ->> QbftBlockCreatorAdaptor: createBlock()
+            Note over QbftBlockCreatorAdaptor: creates and returns empty block
+            opt if within empty block period and wouldCreateEmptyBlock(QbftRound)
+              QbftBlockHeightManager ->> QbftFinalState: getBlockTimer().resetTimerForEmptyBlock()
+              QbftBlockHeightManager ->> QbftFinalState: getRoundTimer().cancelTimer()
+              Note over QbftBlockHeightManager: set currentRound as empty
+            end
+            Note over QbftBlockHeightManager: This node is not a proposer so it will not send a proposal and return
+          end
+          QbftBlockHeightManager ->> QbftRound: createBlock()
+          QbftRouny ->> QbftBlockCreatorAdaptor: createBlock()
+          alt if block is not empty
+            QbftBlockHeightManager ->> QbftRound: updateStateWithProposalAndTransmit()
+          else block is empty 
+            Note over QbftBlockHeightManager: start here 224
+          end
+        end
+      end
+    end
+  end
+
+  destroy BftEventQueue
+  BftProcessor ->> BftEventQueue: stop()
+  deactivate BftProcessor
