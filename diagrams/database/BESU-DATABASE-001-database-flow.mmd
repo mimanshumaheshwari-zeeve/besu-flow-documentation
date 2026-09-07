@@ -1,0 +1,148 @@
+---
+title: "Database Flow"
+config:
+  htmlLabels: false
+
+  layout: elk
+  look: neo
+  theme: neutral
+
+  elk:
+    mergeEdges: false
+    nodePlacementStrategy: LINEAR_SEGMENTS
+    nodePlacementAlignment: BALANCED
+    keepEntryNodeOnTo : true
+
+  flowchart:
+    wrappingWidth: 350
+    padding: 25
+    inheritDir: false
+    nodeSpacing: 20
+    rankSpacing: 40
+---
+%%{init: {} }%%
+flowchart 
+
+  subgraph consensus
+    subgraph common
+      subgraph BftProcessor.java
+        bftProcessor_run(["`run()`"])
+      end
+
+      subgraph EventMultiplexer.java
+        handleBftEvent("`handleBftEvent()`")
+      end
+    end
+
+    subgraph qbft
+      subgraph BftEventHandlerAdaptor.java
+        handleMessageEvent("`handleMessageEvent()`")
+      end
+      subgraph QbftBlockCreatorAdaptor.java
+        createSealedBlock("`createSealedBlock()`")
+      end
+      subgraph QbftProtocolScheduleAdaptor.java
+        getBlockImporter("`getBlockImporter()`")
+      end
+      subgraph QbftBlockImporterAdaptor.java
+        importBlock("`importBlock(QbftBlock, BlockAccessList)`")
+      end
+    end
+
+    subgraph qbft-core
+      subgraph QbftController.java
+        qbftController_handleMessage("`handleMessage()`")
+      end
+
+      subgraph QbftBlockHeightManager.java
+        handleCommitPayload("`handleCommitPayload()`")
+      end
+
+      subgraph QbftRound.java
+        handleCommitMessage("`handleCommitMessage()`")
+        peerIsCommited("`peerIsCommited()`")
+        wasCommitedNotEqualToRoundStateIsCommitted@{shape: diamond, label: "wasCommited != roundState.isCommited()"}
+        importBlockToChain("`importBlockToChain()`")
+      end
+    end
+  end
+  subgraph ethereum
+    subgraph core
+      subgraph MainnetBlockImporter.java 
+        mainnetBlockImporter_importBlock("`importBlock()`")
+      end
+      subgraph MainnetBlockValidator.java 
+        validateAndProcessBlock("`validateAndProcessBlock()`")
+        handleFailedBlockProcessing("`handleFailedBlockProcessing()`")
+        yesPathToHandleFailedBlockProcessing@{shape: diamond, label: "block size is greater than max block size or header is absent, or world state unavailable"}
+        processBlock("`processBlock()`")
+      end
+      subgraph ProtocolContext.java
+        getBadBlockManager("`getBadBlockManager()`")
+        getBlockchain("`getBlockchain()`")
+        getWorldStateArchive("`getWorldStateArchive()`")
+      end
+      subgraph BadBlockManager.java 
+        addBadBlock("`addBlackBlock()`")
+      end
+      subgraph BlockHeaderValidator.java 
+        validateHeader("`validateHeader()`")
+      end
+      subgraph BlockAccessListValidator.java
+        blockAccessListValidator_validate("`validate()`")
+      end
+      subgraph BonsaiWorldStateProvider.java
+        prepareWorldStateForBlock("`prepareWorldStateForBlock()`")
+      end
+      subgraph AbstractBlockProcessor.java
+        blockProcessor_processBlock("`processBlock()`")
+        worldState_persist("`worldState.persist()`")
+      end
+      subgraph DefaultBlockchain.java
+        appendBlock("`appendBlock()`")
+        appendBlockHelper("`appendBlockHelper()`")
+        updateCanonicalChainData("`updateCanonicalChainData()`")
+      end
+      subgraph BlockchainStorage.Updater
+        putBlockHeader("`putBlockHeader()`")
+        putBlockBody("`putBlockBody()`")
+        putTransactionReceipts("`putTransactionReceipts()`")
+        putTotalDifficulty("`putTotalDifficulty()`")
+        updater_commit("`commit()`")
+      end
+    end
+    subgraph storage
+      subgraph KeyValueStoragePrefixedKeyBlockchainStorage.java
+        storageUpdater("`updater()`")
+      end
+      subgraph RocksDBTransaction.java
+        rocksdbTransaction_commit("`commit()`")
+      end
+    end
+  end
+  bftProcessor_run --> handleBftEvent --> handleMessageEvent --> qbftController_handleMessage --> handleCommitPayload --> handleCommitMessage --> peerIsCommited
+  peerIsCommited --> wasCommitedNotEqualToRoundStateIsCommitted -->|yes| importBlockToChain
+  importBlockToChain -->|"returns a QbftBlock"| createSealedBlock
+  importBlockToChain -->|returns QbftBlockImporter| getBlockImporter
+  importBlockToChain --> importBlock
+  importBlock --> mainnetBlockImporter_importBlock
+  mainnetBlockImporter_importBlock --> validateAndProcessBlock
+  validateAndProcessBlock --> yesPathToHandleFailedBlockProcessing -->|yes| handleFailedBlockProcessing
+  validateAndProcessBlock --> validateHeader -->|yes| handleFailedBlockProcessing
+  handleFailedBlockProcessing --> getBadBlockManager --> addBadBlock
+  validateAndProcessBlock --> getBlockchain
+  validateAndProcessBlock --> blockAccessListValidator_validate -->|no| handleFailedBlockProcessing 
+  validateAndProcessBlock --> getWorldStateArchive --> prepareWorldStateForBlock
+  validateAndProcessBlock --> processBlock
+  processBlock --> blockProcessor_processBlock
+  blockProcessor_processBlock --> worldState_persist
+  mainnetBlockImporter_importBlock -->|processing successful| appendBlock
+  appendBlock --> appendBlockHelper
+  appendBlockHelper --> putBlockHeader
+  appendBlockHelper --> putBlockBody
+  appendBlockHelper --> putTransactionReceipts
+  appendBlockHelper --> putTotalDifficulty
+  appendBlockHelper --> updateCanonicalChainData
+  updateCanonicalChainData --> storageUpdater
+  storageUpdater --> updater_commit
+  updater_commit --> rocksdbTransaction_commit
