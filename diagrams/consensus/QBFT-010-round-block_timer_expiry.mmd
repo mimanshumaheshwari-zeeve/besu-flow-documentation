@@ -15,8 +15,14 @@ sequenceDiagram
   participant QbftController as QbftController.java
   participant QbftBlockHeightManager as QbftBlockHeightManager.java
   participant QbftFinalState as QbftFinalState.java
+  participant RoundChangeManager as RoundChangeManager.java
   participant QbftRound as QbftRound.java
+  participant RoundState as RoundState.java
   participant QbftBlockCreatorAdaptor as QbftBlockCreatorAdaptor.java
+  participant MessageFactory as MessageFactory.java
+  participant QbftMessageTransmitter as QbftMessageTransmitter.java
+  participant UniqueMessageMulticaster as UniqueMessageMulticaster.java
+  participant OtherValidators as Other Validators
 
   create participant BftEventQueue@{ type : queue } as BftEventQueue.java
   BftProcessor ->> BftEventQueue: start()
@@ -50,7 +56,7 @@ sequenceDiagram
           break if local node is NOT proposer for round
             QbftBlockHeightManager ->> QbftBlockHeightManager: wouldCreateEmptyBlock(QbftRound)
             QbftBlockHeightManager ->> QbftRound: createBlock()
-            QbftRouny ->> QbftBlockCreatorAdaptor: createBlock()
+            QbftRound ->> QbftBlockCreatorAdaptor: createBlock()
             Note over QbftBlockCreatorAdaptor: creates and returns empty block
             opt if within empty block period and wouldCreateEmptyBlock(QbftRound)
               QbftBlockHeightManager ->> QbftFinalState: getBlockTimer().resetTimerForEmptyBlock()
@@ -60,11 +66,90 @@ sequenceDiagram
             Note over QbftBlockHeightManager: This node is not a proposer so it will not send a proposal and return
           end
           QbftBlockHeightManager ->> QbftRound: createBlock()
-          QbftRouny ->> QbftBlockCreatorAdaptor: createBlock()
+          QbftRound ->> QbftBlockCreatorAdaptor: createBlock()
           alt if block is not empty
-            QbftBlockHeightManager ->> QbftRound: updateStateWithProposalAndTransmit()
-          else block is empty 
-            Note over QbftBlockHeightManager: start here 224
+            QbftBlockHeightManager ->> QbftRound: updateStateWithProposalAndTransmit(..)
+            QbftRound ->> MessageFactory: createProposal()
+            MessageFactory ->> QbftRound: return Proposal
+            QbftRound ->> QbftMessageTransmitter: multicastProposal()
+            QbftMessageTransmitter --> MessageFactory: createProposal()
+            MessageFactory ->> QbftMessageTransmitter: returns Proposal
+            QbftMessageTransmitter->> UniqueMessageMulticaster: send(Proposal)
+            UniqueMessageMulticaster-->> OtherValidators: MESSAGE-PROPOSAL
+            QbftRound ->> QbftRound: updateStateWithProposedBlock(Proposal)
+            QbftRound ->> RoundState: setProposedBlock(Proposal)
+            Note over RoundState: update prepared and committed values
+            opt if block accepted
+              QbftRound ->> RoundState: getProposedBlock()
+              RoundState ->> QbftRound: returns QbftBlock or null
+              QbftRound ->QbftRound: createCommitSeal(QbftBlock) return SECPSignature 
+              opt There are times handling a proposed block is enough to enter prepared.
+                QbftRound->>QbftMessageTransmitter: multicastCommit(ConsensusRoundIdentifier, Hash, SECPSignature)
+              end
+              Note over QbftRound: can automatically add our commit message to the roundState <br/>cannot create a prepare message here, <br/>as it may be our proposal, <br/>and thus we cannot also prepare
+              QbftRound ->> MessageFactory: createCommit(ConsensusRoundIdentifier, Hash, SECPSignature)
+              MessageFactory ->> QbftRound: return Commit
+              QbftRound ->> RoundState: addCommitMessage(Commit)
+              opt It is possible sufficient commit seals are now available and the block should be imported
+                QbftRound ->> QbftRound: importBlockToChain()
+                QbftRound ->> QbftRound: notifyNewBlockListeneres(QbftBlock)
+              end
+            end
+            QbftRound ->> QbftRound: sendPrepare(QbftBlock)
+            QbftRound ->> MessageFactory: createPrepare(ConsensusRoundIdentifier, Hash)
+            MessageFactory ->>QbftRound: creates a Prepare message
+            QbftRound ->> QbftRound: peerIsPrepared(Prepare)
+            RoundState ->> RoundState: addPrepareMessage(Prepare)
+            QbftRound ->>QbftMessageTransmitter:multicastCommit(ConsensusRoundIdentifier, Hash, SECPSignature)
+            QbftMessageTransmitter ->> UniqueMessageMulticaster: send()
+            UniqueMessageMulticaster -->> OtherValidators: MESSAGE-COMMIT
+            QbftRound ->>QbftMessageTransmitter:multicastPrepare(ConsensusRoundIdentifier, Hash)
+            QbftMessageTransmitter ->> UniqueMessageMulticaster: send()
+            UniqueMessageMulticaster -->> OtherValidators: MESSAGE-PREPARE
+          else block is empty
+            alt if empty block expired 
+              QbftBlockHeightManager ->> QbftRound: updateStateWithProposalAndTransmit(..)
+              QbftRound ->> MessageFactory: createProposal()
+              MessageFactory ->> QbftRound: return Proposal
+              QbftRound ->> QbftMessageTransmitter: multicastProposal()
+              QbftMessageTransmitter --> MessageFactory: createProposal()
+              MessageFactory ->> QbftMessageTransmitter: returns Proposal
+              QbftMessageTransmitter->> UniqueMessageMulticaster: send(Proposal)
+              UniqueMessageMulticaster-->> OtherValidators: MESSAGE-PROPOSAL
+              QbftRound ->> QbftRound: updateStateWithProposedBlock(Proposal)
+              QbftRound ->> RoundState: setProposedBlock(Proposal)
+              Note over RoundState: update prepared and committed values
+              opt if block accepted
+                QbftRound ->> RoundState: getProposedBlock()
+                RoundState ->> QbftRound: returns QbftBlock or null
+                QbftRound ->QbftRound: createCommitSeal(QbftBlock) return SECPSignature 
+                opt There are times handling a proposed block is enough to enter prepared.
+                  QbftRound->>QbftMessageTransmitter: multicastCommit(ConsensusRoundIdentifier, Hash, SECPSignature)
+                end
+                Note over QbftRound: can automatically add our commit message to the roundState <br/>cannot create a prepare message here, <br/>as it may be our proposal, <br/>and thus we cannot also prepare
+                QbftRound ->> MessageFactory: createCommit(ConsensusRoundIdentifier, Hash, SECPSignature)
+                MessageFactory ->> QbftRound: return Commit
+                QbftRound ->> RoundState: addCommitMessage(Commit)
+                opt It is possible sufficient commit seals are now available and the block should be imported
+                  QbftRound ->> QbftRound: importBlockToChain()
+                  QbftRound ->> QbftRound: notifyNewBlockListeneres(QbftBlock)
+                end
+              end
+              QbftRound ->> QbftRound: sendPrepare(QbftBlock)
+              QbftRound ->> MessageFactory: createPrepare(ConsensusRoundIdentifier, Hash)
+              MessageFactory ->>QbftRound: creates a Prepare message
+              QbftRound ->> QbftRound: peerIsPrepared(Prepare)
+              RoundState ->> RoundState: addPrepareMessage(Prepare)
+              QbftRound ->>QbftMessageTransmitter:multicastCommit(ConsensusRoundIdentifier, Hash, SECPSignature)
+              QbftMessageTransmitter ->> UniqueMessageMulticaster: send()
+              UniqueMessageMulticaster -->> OtherValidators: MESSAGE-COMMIT
+              QbftRound ->>QbftMessageTransmitter:multicastPrepare(ConsensusRoundIdentifier, Hash)
+              QbftMessageTransmitter ->> UniqueMessageMulticaster: send()
+              UniqueMessageMulticaster -->> OtherValidators: MESSAGE-PREPARE
+            else if not expired 
+              QbftBlockHeightManager -> QbftFinalState: getBlockTimer().resetTimerForEmptyBlock(..)
+              QbftBlockHeightManager -> QbftBlockHeightManager :  set currentRound as empty
+            end
           end
         end
       end
