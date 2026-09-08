@@ -1,0 +1,19 @@
+---
+title: "Besu Shutdown Flow"
+config:
+  theme: neutral
+  look: neo
+---
+flowchart TD
+  signal["Shutdown hook / stop request"] --> runner["Runner.stop()"]
+  runner --> rpc["Stop RPC services"]
+  runner --> mining["MiningCoordinator.awaitStop()"]
+  runner --> sync["Synchronizer.awaitStop()"]
+  runner --> network["NetworkRunner.awaitStop()"]
+  runner --> plugins["Stop plugins"]
+  rpc --> done["shutdown.countDown()"]
+  mining --> done
+  sync --> done
+  network --> done
+  plugins --> done
+  done --> await["Runner.awaitStop() returns"]

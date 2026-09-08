@@ -1,0 +1,18 @@
+---
+title: "Builder Cancellation and Replacement"
+config:
+  theme: neutral
+  look: neo
+---
+flowchart TD
+  request["New forkchoice / payload attributes"] --> id["Create PayloadIdentifier"]
+  id --> existing{"Existing build for context?"}
+  existing -->|yes| cancel["Cancel existing BlockCreationTask"]
+  existing -->|no| create["Create BlockCreationTask"]
+  cancel --> create
+  create --> build["Build candidate block asynchronously"]
+  build --> outcome{"Build outcome"}
+  outcome -->|success| store["Store PayloadWrapper in MergeContext"]
+  outcome -->|cancelled| discard["Discard incomplete candidate"]
+  outcome -->|failure| error["Record build failure"]
+  store --> retrieve["engine_getPayload retrieves latest payload"]

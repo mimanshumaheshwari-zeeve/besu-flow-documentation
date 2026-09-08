@@ -1,0 +1,23 @@
+---
+title: "BesuControllerBuilder Flow"
+config:
+  theme: neutral
+  look: neo
+---
+flowchart TD
+  command["BesuCommand"] --> controllerBuilder["BesuControllerBuilder"]
+  controllerBuilder --> consensusSelection{"Consensus config"}
+  consensusSelection -->|QBFT| qbft["QbftBesuControllerBuilder"]
+  consensusSelection -->|IBFT/Clique/Mainnet| specific["Consensus-specific builder"]
+  qbft --> storageProvider["StorageProvider / RocksDB"]
+  specific --> storageProvider
+  storageProvider --> blockchain["Blockchain"]
+  storageProvider --> worldState["WorldStateArchive"]
+  blockchain --> protocolContext["ProtocolContext"]
+  worldState --> protocolContext
+  protocolContext --> txPool["TransactionPool"]
+  protocolContext --> synchronizer["Synchronizer"]
+  protocolContext --> mining["MiningCoordinator"]
+  txPool --> controller["BesuController"]
+  synchronizer --> controller
+  mining --> controller

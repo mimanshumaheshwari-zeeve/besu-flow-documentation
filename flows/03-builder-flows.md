@@ -1,6 +1,4 @@
-## Important startup items still left
-
-Your major startup path is covered, but these areas still need attention:
+## Important startup items
 
 - BesuControllerBuilder
   - Where Synchronizer and MiningCoordinator are created.

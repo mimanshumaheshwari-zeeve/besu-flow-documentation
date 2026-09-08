@@ -1,0 +1,41 @@
+---
+title: "QBFT Proposal Creation"
+config:
+  theme: neutral
+  look: neo
+---
+flowchart TD
+  timer["BLOCK_TIMER_EXPIRY"] --> manager["QbftBlockHeightManager.handleBlockTimerExpiry()"]
+  manager --> round["QbftRound"]
+  manager --> proposer{"Local node is proposer?"}
+  proposer -->|no| wait["Wait for Proposal"]
+  proposer -->|yes| create["QbftRound.createBlock()"]
+  create --> bft["BftBlockCreator.createBlock()"]
+  bft --> abstract["AbstractBlockCreator.createBlock()"]
+  abstract --> temporary["Temporary parent world state"]
+  abstract --> select["Select and execute transactions"]
+  temporary --> select
+  select --> result["BlockCreationResult"]
+*** Add File: /home/mimanshu-maheshwari/projects/hyperledger/besu-eth/besu-flow-documentation/diagrams/builders/BESU-BUILDER-007-transaction-selection.mmd
+---
+title: "Builder Transaction Selection"
+config:
+  theme: neutral
+  look: neo
+---
+flowchart TD
+  creator["AbstractBlockCreator.selectTransactions()"] --> selector["BlockTransactionSelector"]
+  selector --> pool["TransactionPool.selectTransactions()"]
+  pool --> pending["PendingTransactions.selectTransactions()"]
+  pending --> candidate["Candidate transaction"]
+  candidate --> checks{"Selector checks"}
+  checks -->|sender/nonce| skip["Skip sender / nonce handling"]
+  checks -->|gas/size/blob/fee limits| limits["Limit selectors"]
+  checks -->|valid candidate| execute["Execute against temporary WorldUpdater"]
+  checks -->|invalid or rejected| reject["Reject / skip transaction"]
+  execute --> outcome{"Processing result"}
+  outcome -->|accepted| commit["Commit transaction updater"]
+  outcome -->|invalid| reject
+  commit --> next{"More candidates?"}
+  next -->|yes| candidate
+  next -->|no| selected["Selected transaction list"]

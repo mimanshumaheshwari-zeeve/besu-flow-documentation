@@ -1,0 +1,17 @@
+---
+title: "Candidate Block Finalization"
+config:
+  theme: neutral
+  look: neo
+---
+flowchart TD
+  txs["Processed transactions"] --> receipts["Transaction receipts"]
+  txs --> gas["Cumulative gas / requests"]
+  temporary["Temporary world state"] --> persist["Calculate state root"]
+  receipts --> persist
+  gas --> header["Construct final block header"]
+  persist --> header
+  withdrawals["Withdrawals / protocol fields"] --> header
+  header --> body["Construct block body"]
+  txs --> body
+  body --> result["BlockCreationResult / candidate block"]

@@ -1,0 +1,20 @@
+---
+title: "Startup Failure Paths"
+config:
+  theme: neutral
+  look: neo
+---
+flowchart TD
+  start["BesuCommand startup"] --> build["Build controller and runner"]
+  build --> failure{"Failure?"}
+  failure -->|invalid options| options["Command-line validation error"]
+  failure -->|controller construction| controller["Controller startup failure"]
+  failure -->|RPC bind/start| rpc["RPC startup failure"]
+  failure -->|P2P bind/start| p2p["P2P startup failure"]
+  failure -->|synchronizer| sync["Synchronizer failure"]
+  failure -->|no| running["Runner main loop"]
+  options --> shutdown["Cleanup / exit"]
+  controller --> shutdown
+  rpc --> shutdown
+  p2p --> shutdown
+  sync --> shutdown

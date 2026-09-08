@@ -24,9 +24,6 @@
 
 ## Flows TODO
 
-- `QbftRound.java:374` `blockImporter.importBlock(...)`
-- `NettyPeerConnection.java`
-- `QbftRound.notifyNewBlockListeneres(...)`
-- DB state
 - Block production slows down, transaction pool
+- HSM Plugin <https://github.com/besu-eth/besu-hsm-plugin>
 

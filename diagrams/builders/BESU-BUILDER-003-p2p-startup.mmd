@@ -1,0 +1,19 @@
+---
+title: "P2P Startup Builder Flow"
+config:
+  theme: neutral
+  look: neo
+---
+flowchart TD
+  runner["Runner.startEthereumMainLoop()"] --> networkRunner["NetworkRunner.start()"]
+  networkRunner --> network["DefaultP2PNetwork.start()"]
+  network --> rlpx["RlpxAgent.start()"]
+  network --> discovery["Peer discovery service"]
+  network --> accept["Connection acceptance"]
+  rlpx --> wire["RLPx transport"]
+  discovery --> peers["Peer candidates"]
+  peers --> connect["Peer connection attempt"]
+  connect --> accepted{"Accepted?"}
+  accepted -->|yes| session["Active peer session"]
+  accepted -->|no| reject["Reject / close connection"]
+  session --> messaging["P2P message handlers"]

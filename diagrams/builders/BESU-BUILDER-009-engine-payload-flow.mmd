@@ -1,0 +1,20 @@
+---
+title: "Engine API Payload Builder Flow"
+config:
+  theme: neutral
+  look: neo
+---
+flowchart TD
+  fc["engine_forkchoiceUpdatedV*"] --> coordinator["MergeCoordinator.updateForkChoice()"]
+  coordinator --> prepare["MergeCoordinator.preparePayload()"]
+  prepare --> id["PayloadIdentifier"]
+  prepare --> empty["Create/store empty payload"]
+  prepare --> async["Start asynchronous better-block task"]
+  async --> creator["MergeBlockCreator / AbstractBlockCreator"]
+  creator --> payload["PayloadWrapper"]
+  payload --> context["MergeContext"]
+  fc --> response["Return payloadId"]
+  get["engine_getPayloadV*"] --> retrieve["retrievePayloadById(payloadId)"]
+  retrieve --> wait["Await current build if necessary"]
+  wait --> context
+  context --> execution["ExecutionPayload response"]

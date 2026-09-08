@@ -1,0 +1,22 @@
+---
+title: "Builder Transaction Selection"
+config:
+  theme: neutral
+  look: neo
+---
+flowchart TD
+  creator["AbstractBlockCreator.selectTransactions()"] --> selector["BlockTransactionSelector"]
+  selector --> pool["TransactionPool.selectTransactions()"]
+  pool --> pending["PendingTransactions.selectTransactions()"]
+  pending --> candidate["Candidate transaction"]
+  candidate --> checks{"Selector checks"}
+  checks -->|sender/nonce| skip["Skip sender / nonce handling"]
+  checks -->|gas/size/blob/fee limits| limits["Limit selectors"]
+  checks -->|valid candidate| execute["Execute against temporary WorldUpdater"]
+  checks -->|invalid or rejected| reject["Reject / skip transaction"]
+  execute --> outcome{"Processing result"}
+  outcome -->|accepted| commit["Commit transaction updater"]
+  outcome -->|invalid| reject
+  commit --> next{"More candidates?"}
+  next -->|yes| candidate
+  next -->|no| selected["Selected transaction list"]

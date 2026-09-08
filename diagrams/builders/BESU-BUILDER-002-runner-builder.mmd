@@ -1,0 +1,21 @@
+---
+title: "RunnerBuilder Flow"
+config:
+  theme: neutral
+  look: neo
+---
+flowchart TD
+  command["BesuCommand"] --> builder["RunnerBuilder"]
+  builder --> controller["BesuController"]
+  builder --> network["NetworkRunner"]
+  builder --> rpc["HTTP/WebSocket/GraphQL services"]
+  builder --> nat["NatService"]
+  builder --> metrics["MetricsSystem"]
+  builder --> plugins["Plugin services"]
+  controller --> runner["Runner"]
+  network --> runner
+  rpc --> runner
+  nat --> runner
+  metrics --> runner
+  plugins --> runner
+  runner --> mainLoop["startEthereumMainLoop()"]
