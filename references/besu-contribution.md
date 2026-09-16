@@ -41,8 +41,13 @@ Guide on how to contribute to Besu.
   - **Add labels** to identify the type of your PR.
   - **Ensure your changes are reviewed**. Let us know on Discord that your PR is ready for review. If you are a maintainer, you can choose reviewers; otherwise this is done by one of the maintainers.
   - **When your PR is approved and validated**, all tests pass, and your branch has no conflicts, it can be merged. This is done by a maintainer, usually the same person who approves also merges it.
-  - Besu maintains a [`CHANGELOG.md`](CHANGELOG.md) so users can see what changed between releases. Add your entry under the `## Unreleased` section
+  - Besu maintains a `CHANGELOG.md` so users can see what changed between releases. Add your entry under the `## Unreleased` section
 
+### Common Errors
+
+- Out of memory error
+  - `./gradlew clean build --max-workers=2` restrict the max workers and then check.
+  - `./gradlew clean check test --max-workers=2` 
 
 ## Agentic contributions
 
